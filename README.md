@@ -27,15 +27,10 @@ This plugin handles both, and refuses to invent the parts only you can supply.
 ## Install
 
 ```bash
+<<<<<<< HEAD
 git clone https://github.com/iamsernine/pfe-report-skeletons.git ~/.claude/plugins/claude-report
 ```
 
-Or add it as a marketplace plugin:
-
-```
-/plugin marketplace add iamsernine/pfe-report-skeletons
-/plugin install claude-report
-```
 
 Requirements: Python 3.9+ with Pillow (`pip install -r requirements.txt`).
 **Pandoc is strongly recommended** for markdown→LaTeX (lists, tables, quotes).
