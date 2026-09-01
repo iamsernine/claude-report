@@ -7,6 +7,30 @@ allowed-tools: Read, Glob, Grep, Bash, Write
 Set up an academic report for this project. Use the `rapport-academique` skill for
 all structural, formatting and quality decisions — read it before doing anything.
 
+## Plugin root — mandatory
+
+Scripts live **in this plugin**, not in the student's repository. Never run
+`python3 scripts/review.py` from the project cwd.
+
+```bash
+ROOT="${CLAUDE_PLUGIN_ROOT}"
+if [ -z "$ROOT" ] || [ ! -f "$ROOT/scripts/cli.py" ]; then
+  for cand in \
+    "$HOME/.claude/plugins/claude-report" \
+    "$HOME/.claude/plugins/pfe-report-skeletons"; do
+    [ -f "$cand/scripts/cli.py" ] && ROOT="$cand" && break
+  done
+fi
+if [ -z "$ROOT" ] || [ ! -f "$ROOT/scripts/cli.py" ]; then
+  echo "claude-report: plugin introuvable. Exportez CLAUDE_PLUGIN_ROOT." >&2
+  exit 1
+fi
+python3 "$ROOT/scripts/cli.py" check
+```
+
+If pandoc is missing, say so once: the PDF will still generate via a heading-only
+fallback, but lists and tables will be wrong. Recommend `pandoc`.
+
 ## Arguments
 
 `$ARGUMENTS`
@@ -29,16 +53,38 @@ all structural, formatting and quality decisions — read it before doing anythi
 
 ## Steps
 
+**0. Disambiguate PFA vs internship vs PFE.** Students often say "PFA internship".
+Ask **one** question if `--type` is missing or the answer would change the plan:
+
+- Company internship, bounded task, a few weeks → `stage-technicien` (or
+  `stage-initiation` if observation-only).
+- End-of-year project (company or school), 25–40 pages → `pfa`.
+- Final-year defended project, 50–80 pages → `pfe`.
+
+Do not guess between these three.
+
 **1. Analyse the repository.** Read the README, manifests (package.json,
 requirements.txt, pom.xml, Cargo.toml…), the directory layout, entry points,
 test files, existing diagrams and notebooks. Do not read every source file —
 sample enough to describe the architecture accurately.
 
-**2. Mine the git history for the chronogramme.** Run
-`git log --date=short --pretty='%ad %s'`. Cluster commits into phases by date and
-subject. This produces a Gantt grounded in what actually happened rather than a
-retrospective fiction. If the repository has no history, skip it and note that
-the planning section needs manual input.
+**Confidentiality.** Never read or quote `.env`, `.env.*`, credential files,
+private keys, or token stores. Never copy tenant IDs, access tokens, connection
+strings, or other people's personal emails into the brief or the report. Redact.
+
+**2. Mine the git history for the chronogramme — only inside the internship
+window.** Dates come from `reports_docs/report.yaml` (`period_start` /
+`period_end`) or from `BRIEF.md` if already filled. If those dates are absent,
+**do not** dump the whole `git log` as if it were the stage. Warn that the
+history is the life of the repository, ask for the start (and end) date, and
+run:
+
+```bash
+git log --since="$START" --until="$END" --date=short --pretty='%ad %s'
+```
+
+Cluster commits into phases by date and subject. If the repository has no
+history, skip it and note that the planning section needs manual input.
 
 **3. Select the skeleton.** Map `--type` to a skeleton, then for `pfe` and
 `memoire` determine the deliverable and pick accordingly:
@@ -59,15 +105,36 @@ The distinction that matters most: **if the deliverable is a model rather than a
 application, the software-engineering skeleton is the wrong one.** Say so
 directly if the user's expectation differs.
 
-**4. Write `reports_docs/report.yaml`** — type, skeleton, language, page budget,
-per-chapter page targets derived from the proportion rule, and an empty figure
-registry. Every later command reads this file.
+**4. Write `reports_docs/report.yaml`** using the schema in
+`$ROOT/assets/report.yaml.example`. Include: type, skeleton, language, page
+budget, `biblio_position: before_annexes`, `period_start` / `period_end` if
+known, cover-page fields (title, author, institution…), and a per-chapter
+block with `title`, `kind` (`front` | `intro` | `chapter` | `conclusion` |
+`annex`), `numbered`, and `pages: [min, max]`.
+
+Every later command reads this file — including the Python review, which now
+flags chapters against those budgets.
 
 **5. Write `reports_docs/BRIEF.md`** from the schema in
-`references/brief-schema.md`. Pre-fill everything inferable from the repository.
-Leave the rest as explicit empty fields.
+`references/brief-schema.md`. Pre-fill everything inferable from the
+repository. Leave the rest as explicit empty fields.
 
-**6. Report to the user.** Give:
+**6. Copy templates (do not overwrite if they already exist):**
+
+- `$ROOT/assets/markdown/00-page-de-garde.md` → `reports_docs/00-page-de-garde.md`
+- `$ROOT/assets/markdown/00b-declaration-integrite.md` → `reports_docs/00b-declaration-integrite.md`
+
+Append `$ROOT/assets/gitignore.fragment` to the project's `.gitignore` if those
+lines are not already present.
+
+After copying, stamp the generated markdown so later drafts will not clobber it:
+
+```bash
+python3 "$ROOT/scripts/cli.py" guard --stamp reports_docs/00-page-de-garde.md
+python3 "$ROOT/scripts/cli.py" guard --stamp reports_docs/00b-declaration-integrite.md
+```
+
+**7. Report to the user.** Give:
 
 - The skeleton chosen and one sentence on why
 - Chapter list with page targets summing to the budget
@@ -75,9 +142,11 @@ Leave the rest as explicit empty fields.
   (diagrams, notebook plots, README images) versus which must be produced
 - The exact screenshots needed, derived from routes, endpoints, CLI commands or
   UI components found in the code
-- The proposed chronogramme from git history
+- The proposed chronogramme from git history **inside the period**, or a warning
+  if the period is unknown
 - **What is missing from the brief and must be filled before drafting**
 
 Do not create any chapter files. `/report:init` only sets up.
 
-Finish by telling the user to fill `BRIEF.md`, then run `/report:draft`.
+Finish by telling the user to fill `BRIEF.md` (and `period_start` / `period_end`
+in `report.yaml`), then run `/report:draft`.

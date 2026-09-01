@@ -10,20 +10,37 @@ Use the `rapport-academique` skill.
 ## Arguments
 
 `$ARGUMENTS` — `--fix` applies the mechanical corrections automatically
-(unreferenced figures, missing chapter handoffs, duplicate slugs). Structural and
-substantive problems are always reported, never auto-fixed.
+(unreferenced figures get a `[[REF:]]`, duplicate slugs are renamed). Structural
+and substantive problems are always reported, never auto-fixed.
+
+## Plugin root — mandatory
+
+```bash
+ROOT="${CLAUDE_PLUGIN_ROOT}"
+if [ -z "$ROOT" ] || [ ! -f "$ROOT/scripts/cli.py" ]; then
+  for cand in \
+    "$HOME/.claude/plugins/claude-report" \
+    "$HOME/.claude/plugins/pfe-report-skeletons"; do
+    [ -f "$cand/scripts/cli.py" ] && ROOT="$cand" && break
+  done
+fi
+```
 
 ## Steps
 
-**1. Run the mechanical pass.**
+**1. Run the mechanical pass** (it reads `report.yaml` for type, skeleton and
+page budgets):
 
 ```bash
-python3 scripts/review.py reports_docs
+python3 "$ROOT/scripts/cli.py" review reports_docs $ARGUMENTS
 ```
 
-This checks proportions per chapter, blocking placeholders, unreferenced figures
-and tables, duplicate slugs, an état de l'art with no positioning, results with
-no baseline, and an introduction leaking results.
+Pass `--fix` through to the CLI when the user asked for it. The script checks
+proportions per chapter against yaml targets, blocking and malformed
+placeholders, unreferenced figures and tables, duplicate slugs, état de l'art
+without positioning (**blocking for PFE/mémoire, warning for PFA/module, skipped
+for stages**), results without a baseline (**research skeletons only**), and an
+introduction leaking results.
 
 **2. Read the draft and add the judgement pass.** The script cannot evaluate:
 
@@ -47,7 +64,7 @@ no baseline, and an introduction leaking results.
 Order findings by **how much they cost**, not by document order. Use three tiers:
 
 - **Bloquant** — will visibly damage the grade. Inverted proportions, no
-  positioning, no baseline, unresolved metrics.
+  positioning on a PFE, unresolved metrics.
 - **À corriger** — will be noticed. Unreferenced figures, missing handoffs,
   inconsistent citation style.
 - **À considérer** — improvements, not faults.

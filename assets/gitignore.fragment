@@ -1,0 +1,3 @@
+# claude-report — generated output and draft stamps
+build/
+reports_docs/**/*.generated

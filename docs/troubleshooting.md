@@ -9,6 +9,16 @@ BLOQUÉ — 4 placeholder(s) METRIC/TODO non résolu(s)
 Working as designed. `[[METRIC]]` and `[[TODO]]` mark facts only you can supply.
 Fill them, or pass `--allow-todo` for a watermarked draft PDF.
 
+## Commands cannot find `scripts/review.py`
+
+The scripts live in the **plugin**, not in your project. Commands must call
+`python3 "$CLAUDE_PLUGIN_ROOT/scripts/cli.py" …`. If you cloned the plugin to
+`~/.claude/plugins/claude-report`, that path works as a fallback.
+
+```bash
+python3 ~/.claude/plugins/claude-report/scripts/cli.py check
+```
+
 ## `pdflatex: command not found`
 
 You have no local TeX distribution. The plugin still writes `build/`. Upload that
@@ -83,11 +93,50 @@ It should not have. Check whether the fact was in `BRIEF.md` — if it was absen
 and got written anyway, that is a bug worth reporting. If it was in the brief and
 was wrong there, fix the brief and rerun `/report:draft --chapter N`.
 
+## pandoc is missing
+
+The build still runs, with a warning. Only headings are converted; lists, tables
+and quotes will be raw markdown in the PDF. Install pandoc:
+
+```bash
+sudo apt install pandoc        # Debian/Fedora: dnf install pandoc
+brew install pandoc            # macOS
+```
+
+## My bibliography was deleted on rebuild
+
+That was a bug in 0.1. Rebuild now **merges**: existing keys (including real
+`@article{…}` entries you typed) are kept; only missing cite keys get a stub.
+Fill `references.bib` with real entries using the same keys as
+`[[CITE: key | …]]`.
+
+## Chapitre 1 in the PDF is the introduction
+
+Set `kind: intro` and `numbered: false` on `03-introduction-generale` in
+`report.yaml` (and `kind: conclusion` / `kind: annex` likewise). Init writes
+this. If you still have the 0.1 yaml short-form only, add those keys.
+
+## `/report:draft` skipped every file after an upgrade
+
+Existing markdown without a `.generated` sidecar is treated as student-owned.
+Stamp files you still want regenerated, or pass `--force`:
+
+```bash
+python3 "$CLAUDE_PLUGIN_ROOT/scripts/cli.py" guard --stamp reports_docs/04-x/01.md
+```
+
 ## `/report:draft` overwrote my edits
 
-It checks `git status` and skips modified files, but only if `reports_docs/` is
-tracked. **Commit your report directory.** If you lost work and the directory was
-tracked, `git checkout` recovers it.
+It checks a SHA-256 sidecar (`*.md.generated`) **and** `git status`. Untracked
+edits are protected. **Commit your report directory anyway.** If you lost work
+and the directory was tracked, `git checkout` recovers it.
+
+## A figure's MANIFEST line says `placeholder` after I replaced the PNG
+
+The PNG was not written as a real image (export failed, or you kept the grey
+file). The detector looks for a PNG text chunk `claude-report=placeholder`.
+Export a screenshot, replace `build/figures/<slug>.png` keeping the name,
+rebuild. The line should become `fourni`.
 
 ## The generated LaTeX has an error I cannot fix from markdown
 

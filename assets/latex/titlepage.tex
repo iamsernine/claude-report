@@ -1,0 +1,45 @@
+% Page de garde générique — remplacez les logos et les macros.
+% Les macros \reporttitle, \reportauthor, etc. sont injectées par build.py
+% depuis reports_docs/report.yaml.
+\thispagestyle{empty}
+\begin{titlepage}
+\centering
+
+\vspace*{0.5cm}
+\IfFileExists{figures/logo-institution.png}{%
+  \includegraphics[height=2.2cm]{figures/logo-institution.png}%
+}{%
+  \fbox{\parbox{0.85\textwidth}{\centering\vspace{0.6cm}
+    \textcolor{gray}{\small PLACEHOLDER — figures/logo-institution.png}\\[0.3em]
+    Logo de l'établissement
+    \vspace{0.6cm}}}%
+}
+
+\vspace{1.2cm}
+{\Large\bfseries \reportinstitution}\\[0.4em]
+{\large \reportdegree}\\[1.6cm]
+
+{\LARGE\bfseries \reporttitle}\\[1.4cm]
+
+{\large Rapport de \reporttype}\\[0.3em]
+{\large Année universitaire \reportyear}\\[2cm]
+
+\begin{minipage}[t]{0.48\textwidth}
+\raggedright
+\textbf{Préparé par}\\
+\reportauthor
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+\raggedleft
+\textbf{Encadré par}\\
+\reportsupervisor
+\end{minipage}
+
+\vfill
+\IfFileExists{figures/logo-host.png}{%
+  \includegraphics[height=1.6cm]{figures/logo-host.png}\\[0.4em]
+}{}
+{\small \reportinstitution}
+
+\end{titlepage}

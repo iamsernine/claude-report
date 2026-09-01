@@ -52,6 +52,8 @@ repository and leaving the rest as explicit questions.
 - Périmètre inclus:
 - Périmètre exclu:
 - Durée:
+- Date de début (AAAA-MM-JJ):
+- Date de fin (AAAA-MM-JJ):
 
 ## Contraintes chiffrées
 <!-- These are the thread of the whole report. Numbers, not adjectives. -->

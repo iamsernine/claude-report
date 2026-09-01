@@ -4,7 +4,14 @@
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage[french]{babel}
-\usepackage{lmodern}
+
+% Times (norme UCA / ASIIN). newtx if present, otherwise mathptmx.
+\IfFileExists{newtxtext.sty}{
+  \usepackage{newtxtext}
+  \IfFileExists{newtxmath.sty}{\usepackage{newtxmath}}{\usepackage{mathptmx}}
+}{
+  \usepackage{mathptmx}
+}
 
 % --- mise en page : norme UCA (2 cm) ; passer à 2.5 cm pour la norme ASIIN
 \usepackage[top=2cm,bottom=2cm,left=2.5cm,right=2cm]{geometry}
@@ -21,8 +28,8 @@
 \usepackage{amsmath,amssymb}
 \usepackage{fancyhdr}
 \usepackage{titlesec}
-\usepackage[hidelinks]{hyperref}
 \usepackage{csquotes}
+\usepackage{caption}
 
 \usepackage[backend=biber,style=ieee,sorting=none]{biblatex}
 \addbibresource{references.bib}
@@ -51,7 +58,6 @@
 }
 
 % --- légendes
-\usepackage{caption}
 \captionsetup{font=small,labelfont=bf}
 
 % --- pas de veuves ni d'orphelines
@@ -59,3 +65,6 @@
 \clubpenalty=10000
 
 %%DRAFT%%
+
+% hyperref last (after biblatex and the draft watermark)
+\usepackage[hidelinks]{hyperref}

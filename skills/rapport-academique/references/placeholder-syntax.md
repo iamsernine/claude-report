@@ -2,14 +2,15 @@
 
 Placeholders are typed so that `/report:review` can validate them and
 `/report:build` can convert them into LaTeX. Use these forms exactly — the parser
-is strict, and a malformed placeholder is reported as an error rather than
-silently passed through.
+is strict. A malformed `[[...]]` (unknown kind, missing colon) is a **blocking**
+review error, not silent text in the PDF.
 
 ## Forms
 
 ```
 [[FIG: slug | Caption text | width=0.85]]
 [[TAB: slug | Caption text]]
+[[CITE: knuth84 | Knuth, The TeXbook, 1984]]
 [[CITE: free-text description of the source you need]]
 [[METRIC: what number goes here]]
 [[TODO: anything you must confirm or write yourself]]
@@ -30,7 +31,7 @@ the LaTeX label and the expected image filename.
 | `TAB` | `table` environment with a stub tabular + `\label{tab:<slug>}` | No |
 | `CODE` | `lstlisting` environment | No |
 | `EQ` | `equation` environment with a comment | No |
-| `CITE` | `\cite{TODO-<n>}` + an entry in `citations-needed.md` | No — warns |
+| `CITE` | `\cite{key}` + a merged stub in `references.bib` | No — warns |
 | `METRIC` | Nothing. Build refuses. | **Yes** |
 | `TODO` | Nothing. Build refuses. | **Yes** |
 
@@ -50,7 +51,7 @@ Architecture générale de la plateforme | width=0.9]].
 Le tableau [[TAB: comparaison-modeles | Comparaison des approches évaluées]]
 récapitule les performances obtenues.
 
-Les travaux de [[CITE: YOLOv8 real-time object detection on edge devices]]
+Les travaux de [[CITE: yolov8 | YOLOv8 real-time object detection on edge devices]]
 montrent qu'une inférence temps réel est atteignable sur ce type de matériel.
 
 Le modèle atteint un mAP@0.5 de [[METRIC: mAP@0.5 sur le jeu de test final]]
@@ -58,6 +59,11 @@ sur le jeu de test.
 
 [[TODO: confirmer avec l'encadrant la date exacte de mise en production]]
 ```
+
+Without an explicit cite key, the key is a stable slug of the description (the
+same text always produces the same `\cite{...}`). Prefer `[[CITE: key | …]]` so
+you can fill `references.bib` once. Rebuild **appends** missing keys; it never
+deletes an entry you already wrote.
 
 ## Referencing a placeholder elsewhere
 
@@ -81,5 +87,5 @@ To insert a real image: replace `figures/<slug>.png` with your own file, keeping
 the name. No LaTeX edit is needed. Rebuild.
 
 `/report:build` writes `figures/MANIFEST.md` listing every expected image, its
-slug, its caption, the chapter it appears in, and the recommended minimum pixel
-width. That is the shopping list to hand to yourself before a screenshot session.
+slug, its caption, the chapter it appears in, the recommended minimum pixel
+width, and the état: `placeholder`, `fourni`, or `manquant`.

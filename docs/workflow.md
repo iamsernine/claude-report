@@ -64,6 +64,9 @@ input, not prose. Prioritise:
   Retrofitting them later means rewriting several sections.
 - The results, with baselines
 
+Fill `period_start` / `period_end` in `report.yaml` (or the brief) so the
+chronogramme is `git log --since … --until …`, not the whole repository.
+
 Twenty minutes here saves several hours later.
 
 ## 3. Draft

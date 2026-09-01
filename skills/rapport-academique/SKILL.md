@@ -65,6 +65,12 @@ collapses under one question.
 
 Then read `references/skeletons/<name>/README.md` and `outline.md`.
 
+If the user says "PFA internship", ask whether they mean a company internship
+(`stage-technicien` / `stage-initiation`) or an end-of-year project (`pfa`).
+The wrong type invalidates the page budget and the review checks.
+
+Never read `.env` or credential files. Redact tokens and personal data.
+
 ## Step 2 — Load only what the task needs
 
 | File | Read it when |
@@ -86,7 +92,9 @@ Then read `references/skeletons/<name>/README.md` and `outline.md`.
 Produce the outline adapted to the user's actual subject, never the generic
 template pasted back. Every heading should name their problem, their data, their
 system. Attach a page budget per chapter derived from the proportion rule — that
-number is what stops the état de l'art from swelling.
+number is what stops the état de l'art from swelling. Write it into
+`reports_docs/report.yaml` (`kind`, `numbered`, `pages`). The Python reviewer
+reads those budgets; they are not documentation.
 
 ### Drafting
 

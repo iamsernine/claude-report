@@ -27,20 +27,32 @@ This plugin handles both, and refuses to invent the parts only you can supply.
 ## Install
 
 ```bash
-git clone https://github.com/<you>/claude-report ~/.claude/plugins/claude-report
+git clone https://github.com/iamsernine/pfe-report-skeletons.git ~/.claude/plugins/claude-report
 ```
 
 Or add it as a marketplace plugin:
 
 ```
-/plugin marketplace add <you>/claude-report
+/plugin marketplace add iamsernine/pfe-report-skeletons
 /plugin install claude-report
 ```
 
-Requirements: Python 3.9+ with Pillow (`pip install pillow`). Optional but
-recommended: `pandoc` for markdown→LaTeX conversion, and a TeX distribution for
-local compilation. Without a local TeX install the plugin still generates a
-`build/` folder you upload to Overleaf.
+Requirements: Python 3.9+ with Pillow (`pip install -r requirements.txt`).
+**Pandoc is strongly recommended** for markdown→LaTeX (lists, tables, quotes).
+Without it the build falls back to headings-only conversion and says so.
+Optional: a TeX distribution for local compilation. Without a local TeX install
+the plugin still generates a `build/` folder you upload to Overleaf.
+
+Commands always run `scripts/cli.py` **from the plugin directory**
+(`CLAUDE_PLUGIN_ROOT`). They never assume `scripts/` exists in your project.
+
+You can also call the CLI yourself from anywhere:
+
+```bash
+python3 ~/.claude/plugins/claude-report/scripts/cli.py check
+# or
+~/.claude/plugins/claude-report/bin/claude-report status reports_docs
+```
 
 ---
 
@@ -55,11 +67,16 @@ local compilation. Without a local TeX install the plugin still generates a
 ### 1. `/report:init --type pfe`
 
 Reads your repository — stack, architecture, tests, entry points — and mines
-`git log` to build a chronogramme from what actually happened rather than a
-retrospective fiction.
+`git log` **inside `period_start` / `period_end`** to build a chronogramme from
+what actually happened during the project, not the entire life of the repo.
 
 Then it picks the skeleton, writes `reports_docs/report.yaml` with a per-chapter
-page budget, and generates `reports_docs/BRIEF.md`.
+page budget (read by the Python reviewer, not only by Claude), copies a real
+LaTeX cover page and an integrity / AI-use declaration, and generates
+`reports_docs/BRIEF.md`.
+
+If you omit `--type`, it asks one question: company internship, PFA, or PFE.
+"PFA internship" is ambiguous and the wrong skeleton invalidates the rest.
 
 It reports back: the chapter plan with page targets, the estimated figure count,
 **which figures already exist in your repo**, the exact screenshots you need
@@ -93,6 +110,9 @@ Anything in the brief gets drafted. Anything absent becomes a visible placeholde
 Nothing is invented. A blank section is always better than plausible fiction you
 ship by accident.
 
+Set `period_start` / `period_end` in `report.yaml` so the chronogramme matches
+the internship, not five years of `git log`.
+
 ### 3. `/report:draft`
 
 Writes one folder per chapter, one file per section, into `reports_docs/`.
@@ -107,18 +127,23 @@ Le modèle atteint un mAP@0.5 de [[METRIC: mAP@0.5 sur le jeu de test]].
 ```
 
 Redraft one chapter at a time with `--chapter 3`. Files you have edited are never
-silently overwritten.
+silently overwritten — even if `reports_docs/` is not in git. Protection is a
+`*.md.generated` hash sidecar. `--force` is required to replace those files.
 
 ### 4. `/report:review`
 
 The command that makes this worth installing. Auto-generating a report outline is
 commoditised. **Critique against jury criteria is not.**
 
-It counts words per chapter against budget and flags inverted proportions, finds
-figures declared but never referenced in the text, detects an état de l'art with
-no positioning table, detects a results section with no baseline, catches an
-introduction leaking results and a conclusion introducing new material, and finds
-duplicate labels.
+It counts words per chapter against the yaml budget and flags inverted
+proportions, finds figures declared but never referenced in the text, detects an
+état de l'art with no positioning table (blocking on a PFE, a warning on a PFA,
+skipped on a stage), detects a results section with no baseline **on research
+skeletons only**, catches an introduction leaking results, and finds duplicate
+or malformed placeholders.
+
+`--fix` applies the mechanical subset (missing `[[REF:]]`, duplicate slugs).
+Structural problems are reported, never auto-written.
 
 Then Claude adds the judgement pass the script cannot do: is the problématique a
 problem or a task description, do the technology justifications tie back to the
@@ -130,25 +155,30 @@ Findings are ordered by how much they cost, not by document order.
 
 Generates `build/main.tex`, `build/figures/`, `build/references.bib` and compiles.
 
+Introduction / conclusion / annexes are unnumbered (`\chapter*`), so Chapitre 1
+is the first real chapter. Bibliography defaults to *before* annexes
+(`biblio_position` in yaml).
+
 **The trick that makes it usable:** every `[[FIG:]]` gets a grey placeholder PNG,
-sized correctly, with the slug and caption printed on it. So the first build
-produces a real-looking PDF with correct pagination and figures in their slots.
-You see the layout immediately.
+sized correctly, with the slug and caption printed on it. Placeholders are
+stamped; `MANIFEST.md` says `placeholder` vs `fourni`. Existing real images are
+never overwritten.
 
 To insert a real image, replace `figures/<slug>.png` with your own file keeping
-the filename. No LaTeX edit. Rebuild.
+the filename. No LaTeX edit. Rebuild. Cover logos:
+`figures/logo-institution.png`, `figures/logo-host.png`.
+
+Citation keys are stable (`[[CITE: knuth84 | The TeXbook]]`). Rebuild **merges**
+new stubs into `references.bib`; it does not delete entries you already filled.
 
 The build **refuses** while any `[[METRIC]]` or `[[TODO]]` remains, because a
 report shipping an invented metric is worse than one that does not build. Use
 `--allow-todo` for a watermarked draft.
 
-`build/figures/MANIFEST.md` is your screenshot shopping list: filename, caption,
-chapter, minimum pixel width.
-
 ### `/report:status`
 
 Pages against budget per chapter, brief completeness, blocking placeholders,
-figures outstanding, and one concrete next action.
+figures outstanding (`fourni` vs `placeholder`), and one concrete next action.
 
 ---
 
@@ -171,18 +201,30 @@ Each has a `README.md` explaining when it fits and what the jury tests, plus an
 
 ---
 
+## Tests
+
+```bash
+pip install -r requirements.txt
+python3 -m unittest discover -s tests -v
+```
+
+---
+
 ## What it will not do
 
 It will not invent your results, your company, your supervisor, or your
 citations. It will not write your problématique for you — it will push you until
 yours is a problem rather than a task description.
 
+It will not read `.env` files or put tokens in the report.
+
 The structure, the scaffolding and the formatting are tooling. The engineering
 decisions, the results and the interpretation have to be yours. **A report you
 cannot defend in front of a jury is worthless regardless of how it was produced.**
 
 Check your institution's policy on AI assistance before using this. Policies
-differ and are changing fast.
+differ and are changing fast. `/report:init` copies a declaration page you must
+fill honestly.
 
 ---
 
@@ -200,29 +242,37 @@ differ and are changing fast.
 
 ```
 claude-report/
+├── bin/claude-report            CLI wrapper
 ├── commands/                    the five slash commands
 ├── skills/rapport-academique/
 │   ├── SKILL.md
 │   └── references/              8 skeletons + 9 reference documents
 ├── scripts/
+│   ├── cli.py                   unified entry point (use this)
 │   ├── placeholders.py          typed placeholder parser
 │   ├── gen_figures.py           grey placeholder image generator
-│   ├── review.py                jury-criteria checker
-│   └── build.py                 markdown → LaTeX → PDF
-├── assets/latex/preamble.tex    swap in your school's preamble here
+│   ├── review.py                jury-criteria checker (reads report.yaml)
+│   ├── build.py                 markdown → LaTeX → PDF
+│   ├── draft_guard.py           hash sidecars against silent overwrite
+│   ├── report_config.py         report.yaml loader
+│   └── status.py                progress table
+├── assets/latex/                preamble + titlepage
+├── assets/markdown/             cover + integrity declaration
+├── tests/
 └── docs/
 ```
 
 ## Caveats
 
 **Your department's template wins.** Where this plugin and your official guide
-disagree, follow the guide.
+disagree, follow the guide. Swap `assets/latex/preamble.tex` and the logos.
 
 **Structure is not content.** A perfectly structured report with a thin
 contribution still gets a thin grade. The proportion rule exists precisely to
 stop structure from substituting for substance.
 
 **`build/` is generated.** Never hand-edit `main.tex`. Fix the markdown, rebuild.
+`references.bib` is merged, not overwritten — you *can* fill real entries there.
 
 ## License
 

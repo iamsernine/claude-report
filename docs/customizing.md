@@ -11,39 +11,37 @@ If you already have a working template — for instance a repository with
 1. Copy your preamble (everything before `\begin{document}`) into
    `assets/latex/preamble.tex`.
 2. Keep the `%%DRAFT%%` marker on its own line. `build.py` substitutes the draft
-   watermark there.
+   watermark **and** the cover-page macros (`\reporttitle`, …) there.
 3. Keep `\addbibresource{references.bib}` — the build writes that filename.
 
-The build emits `\chapter{}`, `\section{}`, `figure`, `table`, `lstlisting` and
-`equation` environments. Any preamble that styles those will work.
+The build emits `\chapter{}` / `\chapter*{}`, `\section{}`, `figure`, `table`,
+`lstlisting` and `equation` environments. Any preamble that styles those will
+work. Keep `\usepackage[hidelinks]{hyperref}` **after** biblatex (the shipped
+file already does).
 
 ## The cover page
 
-The build treats `reports_docs/00-page-de-garde.md` as ordinary markdown, which
-is rarely what you want for a title page. Two options:
+`/report:init` copies `assets/markdown/00-page-de-garde.md`, which is just
+`\input{titlepage}`. The title page itself is `assets/latex/titlepage.tex`,
+copied into `build/` on every build. Fill `title`, `author`, `institution`,
+`year`, `degree`, `supervisor` in `report.yaml` — they become `\reporttitle`
+and friends.
 
-**Raw LaTeX in the markdown.** Pandoc is invoked with `markdown+raw_tex`, so a
-LaTeX block in `00-page-de-garde.md` passes through untouched:
+Drop logos at `build/figures/logo-institution.png` and
+`build/figures/logo-host.png` (optional; grey boxes otherwise).
 
-```latex
-\begin{titlepage}
-\centering
-\includegraphics[width=0.8\textwidth]{LOGOS/enset-header.png}\\[2cm]
-{\LARGE\bfseries Titre du projet}\\[1cm]
-...
-\end{titlepage}
-```
+To use a school cover, replace `assets/latex/titlepage.tex` and keep the
+`\reporttitle` macros, or put raw LaTeX in `00-page-de-garde.md` (pandoc is
+invoked with `markdown+raw_tex`).
 
-**Or keep it in the preamble** as a `\maketitlepage` macro and call it from the
-markdown.
-
-Put your logo in `build/figures/` or add a `LOGOS/` folder and reference it
-relatively — anything you place in the output directory survives rebuilds.
+Init also copies `00b-declaration-integrite.md` (integrity + AI-use). Fill the
+`[[TODO]]` fields before a non-draft build.
 
 ## Formatting standard
 
-The shipped preamble implements the UCA-style norm: 2 cm margins, Times-like
-body at 12 pt, 1.5 spacing, page number bottom right.
+The shipped preamble implements the UCA-style norm: 2 cm margins, Times body
+(`newtxtext` / `mathptmx`) at 12 pt, 1.5 spacing, page number bottom right.
+`hyperref` is loaded last, after `biblatex`.
 
 For the ASIIN-aligned norm, change the geometry line:
 
@@ -70,18 +68,26 @@ For author–date (APA), swap `style=ieee` for `style=apa` and `sorting=none` fo
 ## Page budgets
 
 `reports_docs/report.yaml` holds the per-chapter targets. Edit them freely —
-`/report:review` and `/report:status` read from that file, so changing a budget
-changes what gets flagged.
+the Python reviewer and `/report:status` parse that file, so changing a budget
+changes what gets flagged. Full schema: `assets/report.yaml.example`.
+
+The short form still works:
 
 ```yaml
 type: pfe
 skeleton: 03-pfe-data-cloud-deployment
 lang: fr
 pages_total: 65
+biblio_position: before_annexes
+period_start: 2026-02-03
+period_end: 2026-06-12
 chapters:
   01-contexte-general: [7, 9]
   02-etat-de-l-art: [9, 11]
 ```
+
+Prefer the explicit form (`title`, `kind`, `numbered`, `pages`) so introduction,
+conclusion and annexes stay unnumbered in the PDF.
 
 ## Adding a skeleton
 

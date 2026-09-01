@@ -1,0 +1,62 @@
+# report.yaml — schéma
+
+type: pfa                                  # pfe | pfa | stage-initiation |
+                                           # stage-technicien | module | memoire
+skeleton: 04-pfa-annual-project
+lang: fr                                   # fr | en
+pages_total: 35
+words_per_page: 350
+biblio_position: before_annexes            # before_annexes | after_annexes
+
+# Fenêtre du stage / du projet — le chronogramme git ne doit pas
+# raconter toute la vie du dépôt.
+period_start: 2026-02-03
+period_end: 2026-06-12
+
+# Page de garde (injecté dans titlepage.tex)
+title: "Titre du projet"
+author: "Prénom Nom"
+institution: "Établissement"
+year: "2025-2026"
+degree: "Licence / Master / Cycle d'ingénieur"
+supervisor: "Encadrant académique"
+
+chapters:
+  00-page-de-garde:
+    kind: front
+  00b-declaration-integrite:
+    title: Déclaration d'intégrité
+    kind: front
+  01-remerciements:
+    kind: front
+  01b-resume:
+    kind: front
+  03-introduction-generale:
+    title: Introduction générale
+    kind: intro
+    numbered: false
+    pages: [1, 1]
+  04-contexte-et-cadrage:
+    title: Contexte et cadrage du projet
+    kind: chapter
+    numbered: true
+    pages: [6, 9]
+  05-etude-et-conception:
+    title: Étude et conception
+    kind: chapter
+    numbered: true
+    pages: [8, 12]
+  06-realisation-et-validation:
+    title: Réalisation et validation
+    kind: chapter
+    numbered: true
+    pages: [8, 12]
+  99-conclusion-generale:
+    title: Conclusion générale et perspectives
+    kind: conclusion
+    numbered: false
+    pages: [1, 2]
+  99b-annexes:
+    title: Annexes
+    kind: annex
+    numbered: false

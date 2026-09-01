@@ -1,8 +1,10 @@
 {
   "name": "claude-report",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Draft, review and build academic engineering reports — PFE, PFA, stage d'initiation, stage technicien, projet de module — from a code repository. Markdown first, LaTeX at the end.",
   "author": { "name": "Mohammed" },
+  "homepage": "https://github.com/iamsernine/pfe-report-skeletons",
+  "repository": "https://github.com/iamsernine/pfe-report-skeletons",
   "license": "MIT",
   "keywords": ["pfe", "pfa", "stage", "rapport", "latex", "academic", "morocco", "enset"]
 }
