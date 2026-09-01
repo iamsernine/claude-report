@@ -27,14 +27,7 @@ This plugin handles both, and refuses to invent the parts only you can supply.
 ## Install
 
 ```bash
-git clone https://github.com/<you>/claude-report ~/.claude/plugins/claude-report
-```
-
-Or add it as a marketplace plugin:
-
-```
-/plugin marketplace add <you>/claude-report
-/plugin install claude-report
+git clone https://github.com/iamsernine/claude-report ~/.claude/plugins/claude-report
 ```
 
 Requirements: Python 3.9+ with Pillow (`pip install pillow`). Optional but
