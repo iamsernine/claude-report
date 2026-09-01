@@ -1,90 +1,229 @@
-# PFE / PFA report skeletons
+# claude-report
 
-Report structures for engineering projects in IT — PFE, PFA, and ordinary
-project reports — assembled from published institutional writing guides and a
-sample of real reports from Moroccan and Tunisian engineering schools.
+A Claude Code plugin for writing academic engineering reports — PFE, PFA, stage
+d'initiation, stage technicien, projet de module — from a project repository.
 
-Six skeletons, shared formatting reference, and a Claude Skill that applies all
-of it.
+Markdown first, LaTeX at the end. The report is drafted as editable markdown you
+own, reviewed against the criteria a jury actually applies, then compiled into a
+LaTeX document that builds on the first attempt even before you have a single
+screenshot.
 
-## Pick a skeleton
+---
 
-| | Use it when | Length |
+## Why it exists
+
+Two things are hard about these reports and neither is the writing.
+
+**Structure.** Which of eight plans fits your project, and what proportion each
+chapter should occupy. Getting this wrong costs marks in a way that is invisible
+until the defense.
+
+**The gap between markdown and a submittable PDF.** Most people draft in Word,
+fight the table of contents, and discover their figures are unreferenced two days
+before the deadline.
+
+This plugin handles both, and refuses to invent the parts only you can supply.
+
+## Install
+
+```bash
+git clone https://github.com/<you>/claude-report ~/.claude/plugins/claude-report
+```
+
+Or add it as a marketplace plugin:
+
+```
+/plugin marketplace add <you>/claude-report
+/plugin install claude-report
+```
+
+Requirements: Python 3.9+ with Pillow (`pip install pillow`). Optional but
+recommended: `pandoc` for markdown→LaTeX conversion, and a TeX distribution for
+local compilation. Without a local TeX install the plugin still generates a
+`build/` folder you upload to Overleaf.
+
+---
+
+## Workflow
+
+```
+/report:init  →  fill BRIEF.md  →  /report:draft  →  edit  →  /report:review  →  /report:build
+                      ↑                                            │
+                      └────────────────  iterate  ─────────────────┘
+```
+
+### 1. `/report:init --type pfe`
+
+Reads your repository — stack, architecture, tests, entry points — and mines
+`git log` to build a chronogramme from what actually happened rather than a
+retrospective fiction.
+
+Then it picks the skeleton, writes `reports_docs/report.yaml` with a per-chapter
+page budget, and generates `reports_docs/BRIEF.md`.
+
+It reports back: the chapter plan with page targets, the estimated figure count,
+**which figures already exist in your repo**, the exact screenshots you need
+derived from your routes and CLI commands, and what is missing from the brief.
+
+```bash
+/report:init --type pfe
+/report:init --type stage-initiation --pages 15
+/report:init --type pfa --lang en
+```
+
+| `--type` | Experience | Length |
 |---|---|---|
-| [`01-pfe-software-engineering`](skeletons/01-pfe-software-engineering) | PFE building an application for a company | 50–70 p |
-| [`02-pfe-research-ml`](skeletons/02-pfe-research-ml) | PFE whose deliverable is a model, pipeline or experimental result | 50–80 p |
-| [`03-pfe-data-cloud-deployment`](skeletons/03-pfe-data-cloud-deployment) | PFE that both builds a model **and** ships it to production | 60–90 p |
-| [`04-pfa-annual-project`](skeletons/04-pfa-annual-project) | End-of-year project, 3rd or 4th year | 25–40 p |
-| [`05-module-project`](skeletons/05-module-project) | Course project / mini-projet, no company | 12–25 p |
-| [`06-capstone-en`](skeletons/06-capstone-en) | Written in English, international programme | 40–70 p |
+| `stage-initiation` | 1st/2nd year observation internship, 2–6 weeks | 10–20 p |
+| `stage-technicien` | 2nd/3rd year application internship, 4–8 weeks | 20–35 p |
+| `pfa` | Projet de Fin d'Année | 25–40 p |
+| `pfe` | Projet de Fin d'Études | 50–80 p |
+| `module` | Course project, no company | 12–25 p |
+| `memoire` | Master's thesis | 60–100 p |
 
-Each folder has a `README.md` explaining when the skeleton fits and what the jury
-tests, plus an `outline.md` you fill in.
+For `pfe`, a second question determines the deliverable — an application, a
+model, or a model in production — because that changes the whole plan.
 
-### Decision shortcut
+### 2. Fill `BRIEF.md`
 
-```
-Is there a host company?
-├── No  → is it a full-year project?
-│         ├── No  → 05-module-project
-│         └── Yes → 04-pfa-annual-project
-└── Yes → what is the deliverable?
-          ├── An application            → 01-pfe-software-engineering
-          ├── A model or a finding      → 02-pfe-research-ml
-          └── A model, in production    → 03-pfe-data-cloud-deployment
+**This is the step that makes the rest work.** Claude can read your code; it
+cannot know your host organisation, your problématique, your supervisor, your
+measured results, or what went wrong in week six.
 
-Writing in English? → 06-capstone-en (or translate 02 for a thesis)
-```
+Anything in the brief gets drafted. Anything absent becomes a visible placeholder.
+Nothing is invented. A blank section is always better than plausible fiction you
+ship by accident.
 
-## Shared reference
+### 3. `/report:draft`
 
-Applies to all six. Read these once.
+Writes one folder per chapter, one file per section, into `reports_docs/`.
+Figures, tables, citations and missing numbers become typed placeholders.
 
-- [`reference/formatting-standards.md`](reference/formatting-standards.md) —
-  typography, margins, pagination, figure and table conventions, citation styles.
-  Two competing standards (UCA-style and ASIIN-aligned), compared.
-- [`reference/length-and-proportions.md`](reference/length-and-proportions.md) —
-  the 1/5 – 3/5 – 1/5 rule, hard caps, what belongs in the annexes.
-- [`reference/defense-checklist.md`](reference/defense-checklist.md) — slide
-  budget, grading split, question preparation.
-- [`reference/common-pitfalls.md`](reference/common-pitfalls.md) — 21 ways to
-  lose marks, ordered by frequency.
-- [`reference/sources.md`](reference/sources.md) — where all of this comes from.
-- [`templates/page-de-garde.md`](templates/page-de-garde.md) — title page and
-  abstract templates.
+```markdown
+L'architecture est présentée en [[REF: architecture-globale]].
 
-## Claude Skill
+[[FIG: architecture-globale | Architecture générale de la plateforme | width=0.9]]
 
-[`skills/rapport-pfe`](skills/rapport-pfe) packages this repository as a Claude
-Skill, so Claude picks the right skeleton, applies the formatting rules, and
-reviews drafts against the pitfalls list without being told any of it each time.
-
-Install:
-
-```bash
-cd skills
-zip -r rapport-pfe.skill rapport-pfe
+Le modèle atteint un mAP@0.5 de [[METRIC: mAP@0.5 sur le jeu de test]].
 ```
 
-Then upload `rapport-pfe.skill` in Claude → Settings → Capabilities → Skills.
+Redraft one chapter at a time with `--chapter 3`. Files you have edited are never
+silently overwritten.
 
-Rebuild its bundled references after editing anything in `skeletons/` or
-`reference/`:
+### 4. `/report:review`
 
-```bash
-./skills/build.sh
+The command that makes this worth installing. Auto-generating a report outline is
+commoditised. **Critique against jury criteria is not.**
+
+It counts words per chapter against budget and flags inverted proportions, finds
+figures declared but never referenced in the text, detects an état de l'art with
+no positioning table, detects a results section with no baseline, catches an
+introduction leaking results and a conclusion introducing new material, and finds
+duplicate labels.
+
+Then Claude adds the judgement pass the script cannot do: is the problématique a
+problem or a task description, do the technology justifications tie back to the
+constraints, are the limitations honest.
+
+Findings are ordered by how much they cost, not by document order.
+
+### 5. `/report:build`
+
+Generates `build/main.tex`, `build/figures/`, `build/references.bib` and compiles.
+
+**The trick that makes it usable:** every `[[FIG:]]` gets a grey placeholder PNG,
+sized correctly, with the slug and caption printed on it. So the first build
+produces a real-looking PDF with correct pagination and figures in their slots.
+You see the layout immediately.
+
+To insert a real image, replace `figures/<slug>.png` with your own file keeping
+the filename. No LaTeX edit. Rebuild.
+
+The build **refuses** while any `[[METRIC]]` or `[[TODO]]` remains, because a
+report shipping an invented metric is worse than one that does not build. Use
+`--allow-todo` for a watermarked draft.
+
+`build/figures/MANIFEST.md` is your screenshot shopping list: filename, caption,
+chapter, minimum pixel width.
+
+### `/report:status`
+
+Pages against budget per chapter, brief completeness, blocking placeholders,
+figures outstanding, and one concrete next action.
+
+---
+
+## The eight skeletons
+
+| Skeleton | For |
+|---|---|
+| `00-stage-initiation` | Observation internship. No problématique, no contribution — and inventing one is the defining mistake. |
+| `01-pfe-software-engineering` | Contexte → Analyse → Conception → Réalisation. Ships software. |
+| `02-pfe-research-ml` | État de l'art → Méthodologie → Expérimentations. Ships a model or a finding. |
+| `03-pfe-data-cloud-deployment` | Research plus industrialisation. Operational constraints thread the whole report. |
+| `04-pfa-annual-project` | Lighter scope, brief état de l'art, guided rather than autonomous. |
+| `05-module-project` | No company. Delete every organisme d'accueil reflex. |
+| `06-capstone-en` | English. Adds a user manual and a project legacy appendix. |
+| `07-stage-technicien` | A real but bounded task. Describing it precisely beats inflating it. |
+
+Each has a `README.md` explaining when it fits and what the jury tests, plus an
+`outline.md` you fill in. Browse them at
+`skills/rapport-academique/references/skeletons/`.
+
+---
+
+## What it will not do
+
+It will not invent your results, your company, your supervisor, or your
+citations. It will not write your problématique for you — it will push you until
+yours is a problem rather than a task description.
+
+The structure, the scaffolding and the formatting are tooling. The engineering
+decisions, the results and the interpretation have to be yours. **A report you
+cannot defend in front of a jury is worthless regardless of how it was produced.**
+
+Check your institution's policy on AI assistance before using this. Policies
+differ and are changing fast.
+
+---
+
+## Documentation
+
+- [`docs/workflow.md`](docs/workflow.md) — the full loop with a worked example
+- [`docs/customizing.md`](docs/customizing.md) — your school's template, logo,
+  formatting standard, adding a skeleton
+- [`docs/troubleshooting.md`](docs/troubleshooting.md) — build failures, pandoc,
+  Overleaf, accents
+- [`docs/reference.md`](docs/reference.md) — placeholder syntax, `report.yaml`,
+  script APIs
+
+## Layout
+
+```
+claude-report/
+├── commands/                    the five slash commands
+├── skills/rapport-academique/
+│   ├── SKILL.md
+│   └── references/              8 skeletons + 9 reference documents
+├── scripts/
+│   ├── placeholders.py          typed placeholder parser
+│   ├── gen_figures.py           grey placeholder image generator
+│   ├── review.py                jury-criteria checker
+│   └── build.py                 markdown → LaTeX → PDF
+├── assets/latex/preamble.tex    swap in your school's preamble here
+└── docs/
 ```
 
-## Two caveats
+## Caveats
 
-**Your department's template wins.** Where these skeletons and your official
-guide disagree, follow the guide. Everything here is a starting structure and a
-checklist, not a regulation.
+**Your department's template wins.** Where this plugin and your official guide
+disagree, follow the guide.
 
 **Structure is not content.** A perfectly structured report with a thin
-contribution still gets a thin grade. The proportions rule exists precisely to
+contribution still gets a thin grade. The proportion rule exists precisely to
 stop structure from substituting for substance.
+
+**`build/` is generated.** Never hand-edit `main.tex`. Fix the markdown, rebuild.
 
 ## License
 
-MIT. Use it, fork it, adapt it for your school.
+MIT.
