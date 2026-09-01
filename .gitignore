@@ -1,0 +1,27 @@
+# LaTeX build artefacts
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+*.lof
+*.lot
+
+# Office temp files
+~$*
+.~lock.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+
+# Drafts kept out of version control
+drafts/
