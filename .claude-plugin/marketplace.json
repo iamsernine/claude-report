@@ -1,0 +1,25 @@
+{
+  "name": "claude-report",
+  "owner": {
+    "name": "iamsernine",
+    "url": "https://github.com/iamsernine/claude-report"
+  },
+  "metadata": {
+    "description": "Academic engineering report tooling for Claude Code — plan, draft, review and build PFE / PFA / stage / capstone reports from a code repository.",
+    "version": "0.3.0"
+  },
+  "plugins": [
+    {
+      "name": "claude-report",
+      "source": "./",
+      "description": "Draft, review and build academic engineering reports — PFE, PFA, stage d'initiation, stage technicien, projet de module — from a code repository. Markdown first, LaTeX at the end. One skeleton set for every language.",
+      "version": "0.3.0",
+      "author": { "name": "Mohammed" },
+      "homepage": "https://github.com/iamsernine/claude-report",
+      "license": "MIT",
+      "keywords": ["pfe", "pfa", "stage", "rapport", "report", "latex", "academic", "capstone"],
+      "commands": "./commands",
+      "skills": "./skills"
+    }
+  ]
+}

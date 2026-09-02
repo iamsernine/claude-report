@@ -1,6 +1,6 @@
 ---
 name: rapport-academique
-description: Structures, formatting standards, academic French phrasing, and jury review criteria for engineering project reports — PFE (Projet de Fin d'Études), PFA (Projet de Fin d'Année), stage d'initiation, stage technicien, projet de module, mémoire, and English IT capstone reports, following Moroccan, Tunisian and French engineering-school conventions. Use this skill whenever the user mentions a PFE, PFA, rapport de stage, stage d'initiation, stage technicien, mémoire, soutenance, projet de fin d'année, projet de fin d'études, capstone, or asks for help planning, outlining, drafting, structuring, reviewing or building any academic engineering or IT project report — including when they only want one piece of it, such as an introduction, an état de l'art, a problématique, a résumé or abstract, a conclusion, a page de garde, or defense slides. Also use it when the user asks whether their report plan is correct, how long a section should be, how many references are normal, or what a jury expects.
+description: Structures, formatting standards, academic French phrasing, and jury review criteria for engineering project reports — PFE (Projet de Fin d'Études), PFA (Projet de Fin d'Année), stage d'initiation, stage technicien, projet de module, mémoire and capstone reports, in French or English, following Moroccan, Tunisian and French engineering-school conventions. Use this skill whenever the user mentions a PFE, PFA, rapport de stage, stage d'initiation, stage technicien, mémoire, soutenance, projet de fin d'année, projet de fin d'études, capstone, or asks for help planning, outlining, drafting, structuring, reviewing or building any academic engineering or IT project report — including when they only want one piece of it, such as an introduction, an état de l'art, a problématique, a résumé or abstract, a conclusion, a page de garde, or defense slides. Also use it when the user asks whether their report plan is correct, how long a section should be, how many references are normal, or what a jury expects.
 ---
 
 # Rapport académique
@@ -22,17 +22,23 @@ and work within it. Never tell someone their school's official guide is wrong.
 
 ## The non-negotiable rule
 
-**Anything the user has stated, or that is derivable from their repository, may
-be drafted. Anything else is emitted as a `[[TODO]]` or `[[METRIC]]` placeholder,
-never invented.**
+**Every sentence comes from the repository, from `BRIEF.md`, or from a document
+the user put in `reports_docs/sources/`. Anything else is emitted as a
+`[[TODO]]` or `[[METRIC]]` placeholder, never invented.**
 
 Never fabricate company names, supervisor names, jury members, dates, measured
 results, metrics, client names, or citations to papers you have not verified.
 
 The failure mode this prevents is specific and severe: a drafting tool that
-invents plausible French produces text that *reads* finished, and a student under
+invents plausible prose produces text that *reads* finished, and a student under
 deadline pressure ships it. A visible gap is always better than an invisible
 fabrication.
+
+When something is missing, do not stall and do not ask one question at a time.
+Draft everything the three sources support, mark the rest, and then tell the user
+**which document would close which gap** so they can drop it into
+`reports_docs/sources/` and run the draft again. That loop — draft, list gaps,
+receive documents, redraft — is the intended way to reach a complete report.
 
 ## Step 1 — Identify the experience type
 
@@ -48,7 +54,11 @@ answer changes the structure.
 | PFE — application | Final year, ships software | `01-pfe-software-engineering` | 50–70 p |
 | PFE — research | Final year, ships a model or finding | `02-pfe-research-ml` | 50–80 p |
 | PFE — data/cloud | Model **and** production deployment | `03-pfe-data-cloud-deployment` | 60–90 p |
-| English capstone | International programme | `06-capstone-en` | 40–70 p |
+
+**Language is not in this table, and that is deliberate.** A capstone written in
+English for an international programme is a PFE: same row, same skeleton, same
+page budget. Set `lang: en` in `report.yaml` and the headings, the LaTeX chrome
+and the CLI output follow. There is no English skeleton to choose.
 
 Two distinctions carry most of the weight:
 
@@ -62,6 +72,11 @@ plan, say so directly.
 contribution. Manufacturing either is the defining mistake of those reports —
 honest observation reads as maturity, invented achievement reads as fiction and
 collapses under one question.
+
+**Language is not a distinction.** It never selects a skeleton, a chapter count,
+a proportion or a check. If you catch yourself reasoning "this is in English, so
+the plan should be different", stop: the plan is the same and only the words
+change.
 
 Then read `references/skeletons/<name>/README.md` and `outline.md`.
 
@@ -98,6 +113,7 @@ reads those budgets; they are not documentation.
 
 ### Drafting
 
+The output of drafting is **markdown the user reads and confirms**, not a PDF.
 Ask for the material you need. For a **problématique**, push until it is a
 problem rather than a task description; the test is whether someone could propose
 a different solution to it. For an **état de l'art**, it is incomplete without a
@@ -115,14 +131,27 @@ help anyone.
 
 ## Language
 
-Match the user's working language for conversation. Reports for Moroccan,
-Tunisian and French institutions are written in academic French even when the
-conversation is in English — so headings and drafted prose stay French unless the
-user says otherwise or is using `06-capstone-en`. A French résumé is frequently
-required even for English reports.
+**One rule set, rendered in one language.** Structure, proportions, page budgets
+and every review check are language-independent. `lang:` in `report.yaml` is the
+single switch, and it governs three things and nothing else: the heading
+vocabulary, the LaTeX chrome (babel option, cover-page labels, draft watermark)
+and the CLI output.
 
-Use `references/formulations.md` rather than inventing transitions. These are
-genre conventions, and improvised ones read worse.
+- Match the user's working language for **conversation**.
+- Write the **report** in `lang:`. Do not mix: a French report has French
+  headings throughout, an English one English headings throughout.
+- Default to `fr` when unset. Reports for Moroccan, Tunisian and French
+  institutions are usually written in academic French even when the
+  conversation is in English — but confirm rather than assume, because
+  international and double-degree programmes routinely require English.
+- A résumé in the other language is frequently required in both directions. An
+  English report usually still needs a French résumé, and vice versa.
+
+Use `references/formulations.md` rather than inventing transitions. It is
+organised by function (opening, handoff, justification, limitation) with French
+and English forms side by side — the function is the same in both languages, so
+pick the row, then the column. Improvised transitions read worse in either
+language.
 
 ## What not to do
 
@@ -134,3 +163,8 @@ genre conventions, and improvised ones read worse.
 - Do not soften a real structural problem. A student who discovers at the
   soutenance that their plan was wrong had no chance to fix it.
 - Do not hand-edit generated LaTeX. Fix the markdown and rebuild.
+- Do not compile a PDF locally, install a TeX distribution, or treat a missing
+  `pdflatex` as a problem. The pipeline ends at `build/overleaf.zip`; Overleaf
+  compiles it. `pandoc` is the only conversion tool that matters here.
+- Do not write a value because it is plausible. If it is not in the repo, the
+  brief, or a supplied source, it is a placeholder.

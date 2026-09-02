@@ -8,7 +8,7 @@ only by Claude. Full example: `assets/report.yaml.example`.
 ```yaml
 type: pfe                                  # pfe | pfa | stage-initiation |
                                            # stage-technicien | module | memoire
-skeleton: 03-pfe-data-cloud-deployment
+skeleton: 03-pfe-data-cloud-deployment       # one set, never chosen by language
 lang: fr                                   # fr | en
 pages_total: 65
 words_per_page: 350
@@ -117,14 +117,24 @@ substantive is auto-written.
 
 ```bash
 python3 scripts/build.py reports_docs build
-python3 scripts/build.py reports_docs build --allow-todo --no-compile
+python3 scripts/build.py reports_docs build --allow-todo
+python3 scripts/build.py reports_docs build --compile     # opt-in, rarely needed
 ```
 
 Generates figures, converts markdown to LaTeX via pandoc
 (`--top-level-division=section`; headings-only fallback if pandoc is missing),
-expands placeholders, **merges** citation stubs into `references.bib`, copies
-`titlepage.tex`, writes `main.tex` and `citations-needed.md`, then runs
-pdflatex three times with biber after the first.
+expands placeholders, **merges** citation stubs into `references.bib`, writes
+`titlepage.tex` with cover labels in the report's language, writes `main.tex` and
+`citations-needed.md`, and packs `overleaf.zip`.
+
+**No PDF is produced by default.** Compilation belongs to Overleaf, so no TeX
+installation is required. `--compile` runs pdflatex three times with biber after
+the first, for the rare case where a local toolchain already exists;
+`--no-compile` is accepted and does nothing, since it is the default.
+
+Working material is excluded from the report: `BRIEF.md`, `report.yaml`,
+`sources/`, `figures/` and any `.generated` sidecar. A document you drop into
+`sources/` is read by the drafter and never compiled into the output.
 
 Unnumbered kinds emit `\chapter*`. `biblio_position` places
 `\printbibliography` before or after annexes.
@@ -145,8 +155,8 @@ This works when `reports_docs/` is not tracked by git.
 ```
 build/
 ├── main.tex                generated — never hand-edit
-├── main.pdf
-├── titlepage.tex           copied from assets
+├── overleaf.zip            upload this
+├── titlepage.tex           generated from assets + report.yaml
 ├── references.bib          merged stubs + whatever you filled in
 ├── citations-needed.md     what to source, and where it is cited
 └── figures/

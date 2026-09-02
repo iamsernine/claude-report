@@ -1,1 +1,3 @@
+# Optional. Only `claude-report figures` and the figure-placeholder step
+# of `build` need it; check/status/review/guard run without it.
 pillow>=9.0

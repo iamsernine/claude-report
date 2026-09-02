@@ -4,8 +4,12 @@ argument-hint: "[--fix]"
 allowed-tools: Read, Glob, Grep, Bash, Edit
 ---
 
-Review the draft in `reports_docs/` against the criteria a jury actually applies.
-Use the `rapport-academique` skill.
+Review the markdown draft in `reports_docs/` against the criteria a jury
+actually applies. Use the `rapport-academique` skill.
+
+This is the gate before `/report:build`. It reviews **markdown**, never LaTeX —
+if something is wrong, it is wrong in the markdown, and that is where it gets
+fixed.
 
 ## Arguments
 
@@ -13,17 +17,17 @@ Use the `rapport-academique` skill.
 (unreferenced figures get a `[[REF:]]`, duplicate slugs are renamed). Structural
 and substantive problems are always reported, never auto-fixed.
 
-## Plugin root — mandatory
+## Plugin root
+
+Scripts live **in this plugin**, never in the student's repository — do not run
+`python3 scripts/cli.py` from the project cwd. `$CLAUDE_PLUGIN_ROOT` is set for you on a
+correctly installed plugin; the fallback line covers a manual install. If `$CR`
+is empty, the plugin is not installed — say so and stop rather than guessing.
 
 ```bash
-ROOT="${CLAUDE_PLUGIN_ROOT}"
-if [ -z "$ROOT" ] || [ ! -f "$ROOT/scripts/cli.py" ]; then
-  for cand in \
-    "$HOME/.claude/plugins/claude-report" \
-    "$HOME/.claude/plugins/pfe-report-skeletons"; do
-    [ -f "$cand/scripts/cli.py" ] && ROOT="$cand" && break
-  done
-fi
+CR="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/claude-report}/scripts/cli.py"
+[ -f "$CR" ] || CR=$(ls -1 "$HOME"/.claude/{plugins,skills}/claude-report/scripts/cli.py "$HOME"/.claude/plugins/cache/*/claude-report/*/scripts/cli.py 2>/dev/null | head -1)
+CRROOT=$(dirname "$(dirname "$CR")")
 ```
 
 ## Steps
@@ -32,7 +36,7 @@ fi
 page budgets):
 
 ```bash
-python3 "$ROOT/scripts/cli.py" review reports_docs $ARGUMENTS
+python3 "$CR" review reports_docs $ARGUMENTS
 ```
 
 Pass `--fix` through to the CLI when the user asked for it. The script checks
@@ -74,3 +78,8 @@ Be concrete about what to cut. Students find cutting harder than writing, and
 pages it should lose.
 
 End with the single highest-value change to make next.
+
+If the blocking findings are unresolved `[[TODO]]` / `[[METRIC]]` placeholders
+rather than prose problems, say so plainly and point at the loop: fill the field
+in `BRIEF.md`, or drop the document holding it into `reports_docs/sources/` and
+re-run `/report:draft`. Do not suggest writing the missing value.

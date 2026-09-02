@@ -56,7 +56,12 @@ def classify(root: Path) -> Dict[str, List[str]]:
     root = Path(root)
     skip, writable, unstamped = [], [], []
     dirty = git_dirty(root)
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).parent))
+    from paths import is_report_content
     for md in sorted(root.rglob("*.md")):
+        if not is_report_content(md, root):
+            continue
         if md.name in ("BRIEF.md",) or md.name.endswith(".generated"):
             continue
         rel = str(md.relative_to(root))

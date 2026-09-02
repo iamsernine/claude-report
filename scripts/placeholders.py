@@ -121,9 +121,12 @@ def scan_tree_malformed(root: Path) -> List[Malformed]:
 
 
 def _md_files(root: Path):
-    skip = {"BRIEF.md", "MANIFEST.md", "citations-needed.md"}
-    for md in sorted(Path(root).rglob("*.md")):
-        if md.name in skip:
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent))
+    from paths import is_report_content
+    root = Path(root)
+    for md in sorted(root.rglob("*.md")):
+        if not is_report_content(md, root):
             continue
         if md.name.endswith(".generated"):
             continue

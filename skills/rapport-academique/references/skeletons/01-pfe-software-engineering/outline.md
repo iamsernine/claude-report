@@ -3,6 +3,11 @@
 Replace every `<...>` placeholder. Delete sections that do not apply rather than
 padding them.
 
+Headings are given in French with the English equivalent alongside. They are the
+same structure: pick the column matching `lang:` in `report.yaml` and stay in
+it. Nothing else about the plan, the proportions or the review checks changes
+with language.
+
 ---
 
 ## Front matter
@@ -10,8 +15,11 @@ padding them.
 - Page de garde — *obligatoire*
 - Dédicaces — *facultatif*
 - Remerciements — *obligatoire*
-- Résumé (FR) + mots-clés — *obligatoire*
-- Abstract (EN) + keywords — *strongly recommended*
+- Résumé / Abstract in the report's language + mots-clés / keywords —
+  *obligatoire*, 150–250 words, 5–7 keywords. It must stand alone: objective,
+  method, results, main conclusion.
+- A second abstract in the other language — *strongly recommended*, and often
+  required even for an English report
 - Sommaire / table des matières — *obligatoire*
 - Liste des figures — *if any*
 - Liste des tableaux — *if any*
@@ -30,6 +38,7 @@ padding them.
 ---
 
 ## Chapitre 1 — Contexte général du projet
+*(en: Introduction and Context)*
 
 ### 1.1 Présentation de l'organisme d'accueil
 - Identity, activity, market position
@@ -59,6 +68,7 @@ padding them.
 ---
 
 ## Chapitre 2 — Analyse et spécification des besoins
+*(en: Problem Analysis and Requirements)*
 
 ### 2.1 Étude comparative des solutions existantes
 - Two to four existing products or approaches
@@ -85,6 +95,7 @@ padding them.
 ---
 
 ## Chapitre 3 — Conception
+*(en: Design)*
 
 ### 3.1 Architecture générale
 - Style and justification (n-tier, MVC, microservices, event-driven)
@@ -111,6 +122,7 @@ padding them.
 ---
 
 ## Chapitre 4 — Réalisation et tests
+*(en: Implementation, Testing and Evaluation)*
 
 ### 4.1 Environnement de travail
 - Hardware
@@ -140,6 +152,7 @@ padding them.
 ---
 
 ## Conclusion générale et perspectives — max 2 pages
+*(en: Conclusion and Future Work)*
 
 - What was accomplished, against the objectives stated in the introduction
 - Contributions to the host organisation
@@ -152,7 +165,11 @@ padding them.
 
 ## Back matter
 
-- Bibliographie / Webographie
-- Annexes (A, B, C...) — long code, full data tables, configuration procedures,
-  user manual
+- Bibliographie / References — IEEE or ACM style for computing work
+- **Annexe A — Manuel utilisateur** *(en: Appendix A — User Manual)*
+- **Annexe B — Reprise du projet** *(en: Appendix B — Project Legacy)* — what a
+  successor needs to pick this up: repository layout, environment setup, known
+  issues, unfinished threads, credential handling, who to ask
+- Annexe C — extraits de code / source code excerpts
+- Annexe D — résultats bruts / raw results
 - Glossaire, if the domain needs one

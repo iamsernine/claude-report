@@ -108,6 +108,26 @@ skeleton plus a note would do.
 
 ## Language
 
-`--lang en` selects `06-capstone-en` and switches drafting to English. A French
-résumé is frequently required even for English reports — check your department,
-and if so keep `01b-resume.md` in French while the rest is English.
+`lang: fr | en` in `report.yaml` is the only switch. It selects heading
+vocabulary, LaTeX chrome (babel option, cover labels, draft watermark) and CLI
+output. It does **not** select a skeleton, a chapter count, a page budget or a
+check — those are identical in every language.
+
+A résumé in the other language is frequently required in both directions — check
+your department. If so, keep that one file in the other language while the rest
+of the report stays in `lang`.
+
+### Adding a language
+
+1. Add a locale table to `LOCALES` in `scripts/i18n.py`. `tests/test_i18n.py`
+   asserts every locale defines exactly the same keys, so a missing string is a
+   test failure rather than a silent fallback at build time.
+2. Add the language's terms to `_VOCAB` in the same file. Detection uses the
+   **union** of every locale, which is what keeps one rule firing on
+   `03-etat-de-lart` and `03-literature-review` alike.
+3. Add the `babel` key for the new locale — `build.py` reads it and injects the
+   package line at `%%LANG%%` in `assets/latex/preamble.tex`.
+4. Add `assets/markdown/00b-declaration-integrite.<lang>.md`.
+
+Nothing else should need touching. If adding a language makes you want to write
+`if lang == …` in a rule, the rule is wrong, not the language.

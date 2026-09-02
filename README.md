@@ -26,38 +26,102 @@ This plugin handles both, and refuses to invent the parts only you can supply.
 
 ## Install
 
-```bash
-<<<<<<< HEAD
-git clone https://github.com/iamsernine/pfe-report-skeletons.git ~/.claude/plugins/claude-report
+```
+/plugin marketplace add iamsernine/claude-report
+/plugin install claude-report@claude-report
 ```
 
+Restart Claude Code (or run `/plugin`) and `/report:init` is available.
 
-Requirements: Python 3.9+ with Pillow (`pip install -r requirements.txt`).
-**Pandoc is strongly recommended** for markdown→LaTeX (lists, tables, quotes).
-Without it the build falls back to headings-only conversion and says so.
-Optional: a TeX distribution for local compilation. Without a local TeX install
-the plugin still generates a `build/` folder you upload to Overleaf.
+Cloning into `~/.claude/plugins/` does **not** install anything — Claude Code
+registers plugins through a marketplace, and only a registered plugin gets
+`$CLAUDE_PLUGIN_ROOT` exported to its commands. If the commands cannot find the
+plugin, that is almost always the cause.
 
-Commands always run `scripts/cli.py` **from the plugin directory**
-(`CLAUDE_PLUGIN_ROOT`). They never assume `scripts/` exists in your project.
-
-You can also call the CLI yourself from anywhere:
+<details>
+<summary>Manual install, for hacking on the plugin locally</summary>
 
 ```bash
-python3 ~/.claude/plugins/claude-report/scripts/cli.py check
-# or
-~/.claude/plugins/claude-report/bin/claude-report status reports_docs
+git clone git@github.com:iamsernine/claude-report.git ~/src/claude-report
+/plugin marketplace add ~/src/claude-report
+/plugin install claude-report@claude-report
 ```
+
+A marketplace can be a local directory, so this keeps your checkout editable
+while still registering properly. As a last resort the commands also fall back
+to `~/.claude/plugins/claude-report`, `~/.claude/skills/claude-report` and the
+marketplace cache, so a hand-copied tree still works — it just will not update.
+
+</details>
+
+### Requirements
+
+| | | |
+|---|---|---|
+| Python 3.9+ | required | no third-party packages needed for `check`, `status`, `review`, `gaps`, `guard` |
+| **pandoc** | **strongly recommended** | markdown→LaTeX. Without it the build falls back to headings-only conversion, and lists, tables and quotes come out wrong. It says so when this happens. |
+| Pillow | recommended | `pip install -r requirements.txt` — only to generate figure placeholders |
+| pdftotext *or* pypdf | optional | only to read PDFs you drop into `reports_docs/sources/` |
+| TeX, pdflatex, biber | **not needed** | nothing is compiled locally. Overleaf compiles `build/overleaf.zip`. Do not install a TeX distribution for this. |
+
+Check what you have:
+
+```bash
+python3 "$CLAUDE_PLUGIN_ROOT/scripts/cli.py" check
+```
+
+Commands run `scripts/cli.py` **from the plugin directory**, never from your
+project. The CLI locates its own root, so nothing needs to be on your `PATH`.
+
+You can also call it yourself from anywhere:
+
+```bash
+python3 "$CLAUDE_PLUGIN_ROOT/scripts/cli.py" status reports_docs
+```
+
+---
+
+## Languages
+
+One skeleton set, one set of rules, rendered in the language you choose.
+
+`lang: fr | en` in `reports_docs/report.yaml` selects three things: heading
+vocabulary, LaTeX chrome (babel option, cover-page labels, draft watermark) and
+CLI output. It selects **nothing else** — the skeleton, the chapter count, the
+page budget and every review check are identical in both languages. A chapter
+called `03-etat-de-lart` and one called `03-literature-review` hit the same
+checks at the same thresholds.
+
+Adding a language means adding a locale table in `scripts/i18n.py` and its terms
+to the shared detection vocabulary. It never means adding a skeleton or a branch
+in a rule.
 
 ---
 
 ## Workflow
 
 ```
-/report:init  →  fill BRIEF.md  →  /report:draft  →  edit  →  /report:review  →  /report:build
-                      ↑                                            │
-                      └────────────────  iterate  ─────────────────┘
+/report:init  →  fill BRIEF.md  →  /report:draft  →  read the markdown
+                       ↑                                    │
+                       │        drop documents in           │ confirm
+                       └──────  reports_docs/sources/  ←─────┤
+                                                            ↓
+                                        /report:review  →  /report:build
+                                                            ↓
+                                                   build/overleaf.zip
+                                                            ↓
+                                              upload to Overleaf → PDF
 ```
+
+**The plugin stops at LaTeX.** It never compiles a PDF on your machine, and
+needs no TeX installation. `/report:build` writes `build/` plus a ready-to-upload
+`build/overleaf.zip`; Overleaf does the rest.
+
+**It never guesses.** Everything comes from your repository, from `BRIEF.md`, or
+from documents you drop into `reports_docs/sources/` — PDFs, Markdown, plain
+text. Whatever is still missing is left as a visible `[[TODO]]` / `[[METRIC]]`
+placeholder and listed back to you, so you can supply the document that closes it
+and draft again.
 
 ### 1. `/report:init --type pfe`
 
@@ -177,7 +241,7 @@ figures outstanding (`fourni` vs `placeholder`), and one concrete next action.
 
 ---
 
-## The eight skeletons
+## The seven skeletons
 
 | Skeleton | For |
 |---|---|
@@ -187,8 +251,14 @@ figures outstanding (`fourni` vs `placeholder`), and one concrete next action.
 | `03-pfe-data-cloud-deployment` | Research plus industrialisation. Operational constraints thread the whole report. |
 | `04-pfa-annual-project` | Lighter scope, brief état de l'art, guided rather than autonomous. |
 | `05-module-project` | No company. Delete every organisme d'accueil reflex. |
-| `06-capstone-en` | English. Adds a user manual and a project legacy appendix. |
 | `07-stage-technicien` | A real but bounded task. Describing it precisely beats inflating it. |
+
+The skeleton follows the **experience type and the deliverable**, never the
+language. An English capstone is a PFE with `lang: en`; skeleton
+`01-pfe-software-engineering` carries the user-manual and project-legacy
+appendices for every language. (`06-capstone-en` was a separate English
+structure in 0.2.x; it is retired, and an old `report.yaml` naming it is
+migrated automatically.)
 
 Each has a `README.md` explaining when it fits and what the jury tests, plus an
 `outline.md` you fill in. Browse them at
@@ -199,9 +269,14 @@ Each has a `README.md` explaining when it fits and what the jury tests, plus an
 ## Tests
 
 ```bash
-pip install -r requirements.txt
-python3 -m unittest discover -s tests -v
+python3 -m unittest discover -s tests -v      # or: python3 -m pytest tests -q
 ```
+
+No third-party packages are needed to run them. `tests/test_i18n.py` pins the
+language contract: every locale must define the same keys, chapter kinds must be
+inferred identically in French and English, and the same draft must produce the
+same findings in both languages. If you add a language and forget a string, that
+is a test failure, not a silent fallback in someone's PDF.
 
 ---
 

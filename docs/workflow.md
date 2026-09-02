@@ -132,8 +132,11 @@ Fill them from your actual results, or build a draft:
 /report:build --allow-todo
 ```
 
-You get `build/main.pdf` — 62 pages, correct pagination, table of contents, every
-figure a labelled grey box. **This is the moment the report becomes real.**
+You get `build/` and `build/overleaf.zip` — `main.tex`, the cover page, the
+bibliography and a grey labelled box for every figure. **No PDF is produced
+here.** Upload the archive to Overleaf (step 7) and you get 62 pages with correct
+pagination and a full table of contents. That is the moment the report becomes
+real.
 
 ## 6. Replace the figures
 
@@ -150,13 +153,28 @@ Rebuild. No LaTeX edits.
 
 ## 7. Overleaf
 
-Upload the whole `build/` folder. Settings → Compiler: pdfLaTeX, Bibliography:
-Biber. Compile.
+New Project → Upload Project → `build/overleaf.zip`. Settings → Compiler:
+**pdfLaTeX**, Bibliography: **Biber**. Compile.
+
+This is the only place a PDF is ever produced. The plugin deliberately stops at
+LaTeX, so you never need a local TeX installation and never wait on one.
+
+If Overleaf reports an error, fix it in the **markdown** and rebuild. Never edit
+`build/main.tex` — it is regenerated on every run. The one file you may edit
+directly is `references.bib`, which the build merges rather than overwrites.
 
 ## Iterating
 
-The loop is `draft → edit → review → build`. Nothing is one-shot. Expect four or
-five review passes on a PFE.
+Two loops, and they are different.
+
+**The content loop** closes gaps. Draft marks what it cannot source as
+`[[TODO]]` / `[[METRIC]]` and lists it back to you. Fill the field in `BRIEF.md`,
+or drop the document that holds it — a PDF, a Markdown note, an export — into
+`reports_docs/sources/`, then draft again. Nothing is ever invented to fill a
+hole, so this loop is what turns a skeleton into a report.
+
+**The quality loop** is `draft → read → review → build`. Nothing is one-shot;
+expect four or five review passes on a PFE.
 
 Commit `reports_docs/` to git. It is your work; `build/` is disposable and
 belongs in `.gitignore`.

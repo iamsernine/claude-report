@@ -21,28 +21,56 @@ python3 ~/.claude/plugins/claude-report/scripts/cli.py check
 
 ## `pdflatex: command not found`
 
-You have no local TeX distribution. The plugin still writes `build/`. Upload that
-folder to Overleaf and compile there.
+**This is not an error.** The plugin does not compile PDFs and does not need a
+TeX distribution. It writes `build/` and `build/overleaf.zip`; you upload the
+archive to Overleaf and compile there.
 
-To install locally: `sudo apt install texlive-full` (Debian/Ubuntu), MiKTeX on
-Windows, MacTeX on macOS. `texlive-full` is ~5 GB; `texlive-latex-extra
-texlive-lang-french texlive-bibtex-extra biber` is enough and much smaller.
+`check` reports `pdflatex` and `biber` as *not needed* for the same reason. Do
+not install `texlive-full` (~5 GB) to satisfy them.
 
-## `Package babel Error: Unknown option 'french'`
+If you genuinely have a local TeX toolchain and want to use it, `build --compile`
+opts in. Nothing in the workflow depends on it.
 
-Missing French language support:
+## `Package babel Error: Unknown option 'french'` (or `'english'`)
+
+The babel option is injected from `lang:` in `report.yaml`, so the package you
+need follows the report's language:
 
 ```bash
-sudo apt install texlive-lang-french
+sudo apt install texlive-lang-french     # lang: fr
+sudo apt install texlive-lang-english    # lang: en
 ```
 
-Overleaf has it by default.
+Overleaf has both by default.
 
-## `biber introuvable`
+If the option does not match `lang:` at all, someone has hand-edited
+`assets/latex/preamble.tex` and replaced the `%%LANG%%` marker with a literal
+`\usepackage[...]{babel}`. Restore the marker; the build fills it in.
 
-The bibliography will not resolve locally, but the PDF still builds with `[?]`
-citation marks. Install `biber`, or compile in Overleaf with Bibliography Tool set
-to Biber (Menu → Settings).
+## `biber not found`
+
+Only relevant if you used `--compile`. In the normal flow, set Overleaf's
+Bibliography Tool to **Biber** (Menu → Settings) and it resolves there.
+
+## A document I put in `sources/` is not being used
+
+Run `sources` to see how it was classified:
+
+```bash
+python3 "$CR" sources reports_docs
+```
+
+`[+]` readable, `[-]` unreadable, `[!]` skipped as a credential file. A PDF needs
+`pdftotext` (`sudo dnf install poppler-utils`) or `pip install pypdf`; a scanned
+PDF has no text layer and needs OCR or retyping. `.docx` / `.pptx` must be saved
+as PDF or Markdown first.
+
+## Text from `sources/` appeared in my report
+
+It should not — supplied documents are working material, never content, and the
+build excludes `sources/` entirely. If you see this, the file is in the wrong
+place: only `reports_docs/sources/**` is excluded, not a folder you created
+elsewhere under `reports_docs/`.
 
 ## Accents render as `Ã©`
 

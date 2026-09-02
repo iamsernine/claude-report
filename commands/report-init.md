@@ -7,29 +7,24 @@ allowed-tools: Read, Glob, Grep, Bash, Write
 Set up an academic report for this project. Use the `rapport-academique` skill for
 all structural, formatting and quality decisions — read it before doing anything.
 
-## Plugin root — mandatory
+## Plugin root
 
-Scripts live **in this plugin**, not in the student's repository. Never run
-`python3 scripts/review.py` from the project cwd.
+Scripts live **in this plugin**, never in the student's repository — do not run
+`python3 scripts/cli.py` from the project cwd. `$CLAUDE_PLUGIN_ROOT` is set for you on a
+correctly installed plugin; the fallback line covers a manual install. If `$CR`
+is empty, the plugin is not installed — say so and stop rather than guessing.
 
 ```bash
-ROOT="${CLAUDE_PLUGIN_ROOT}"
-if [ -z "$ROOT" ] || [ ! -f "$ROOT/scripts/cli.py" ]; then
-  for cand in \
-    "$HOME/.claude/plugins/claude-report" \
-    "$HOME/.claude/plugins/pfe-report-skeletons"; do
-    [ -f "$cand/scripts/cli.py" ] && ROOT="$cand" && break
-  done
-fi
-if [ -z "$ROOT" ] || [ ! -f "$ROOT/scripts/cli.py" ]; then
-  echo "claude-report: plugin introuvable. Exportez CLAUDE_PLUGIN_ROOT." >&2
-  exit 1
-fi
-python3 "$ROOT/scripts/cli.py" check
+CR="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/claude-report}/scripts/cli.py"
+[ -f "$CR" ] || CR=$(ls -1 "$HOME"/.claude/{plugins,skills}/claude-report/scripts/cli.py "$HOME"/.claude/plugins/cache/*/claude-report/*/scripts/cli.py 2>/dev/null | head -1)
+CRROOT=$(dirname "$(dirname "$CR")")
+python3 "$CR" check
 ```
 
-If pandoc is missing, say so once: the PDF will still generate via a heading-only
-fallback, but lists and tables will be wrong. Recommend `pandoc`.
+If pandoc is missing, say so once and recommend installing it: without it the
+markdown→LaTeX conversion falls back to headings only, and lists, tables and
+quotes come out wrong. `pdflatex` and `biber` are reported as *not needed* —
+compilation happens on Overleaf, never here.
 
 ## Arguments
 
@@ -48,8 +43,12 @@ fallback, but lists and tables will be wrong. Recommend `pandoc`.
   | `module` | Course project / mini-projet, no company | 12–25 p |
   | `memoire` | Master's thesis — uses the research skeleton | 60–100 p |
 
-- `--lang` — `fr` (default) or `en`.
-- `--pages` — override the target page count.
+- `--lang` — `fr` (default) or `en`. **This never changes the structure.** It
+  selects heading vocabulary, LaTeX chrome and CLI output only; the skeleton,
+  chapter count, proportions and review checks are identical in both languages.
+- `--pages` — override the target page count. If it contradicts `--type` (say
+  `--type pfa --pages 80`), do not silently obey either — say so and ask which
+  one is real, because the page budget drives every later check.
 
 ## Steps
 
@@ -98,15 +97,19 @@ memoire          → 02-pfe-research-ml
 pfe              → an application         → 01-pfe-software-engineering
                  → a model or a finding   → 02-pfe-research-ml
                  → a model in production  → 03-pfe-data-cloud-deployment
---lang en        → 06-capstone-en
 ```
 
 The distinction that matters most: **if the deliverable is a model rather than an
 application, the software-engineering skeleton is the wrong one.** Say so
 directly if the user's expectation differs.
 
+**`--lang` is not in this map.** There is one skeleton set for every language;
+an English capstone is a `pfe` with `lang: en`. (`06-capstone-en` was retired
+and is auto-migrated to `01-pfe-software-engineering` if it appears in an old
+`report.yaml`.) Never pick a skeleton because of the language.
+
 **4. Write `reports_docs/report.yaml`** using the schema in
-`$ROOT/assets/report.yaml.example`. Include: type, skeleton, language, page
+`$CRROOT/assets/report.yaml.example`. Include: type, skeleton, `lang`, page
 budget, `biblio_position: before_annexes`, `period_start` / `period_end` if
 known, cover-page fields (title, author, institution…), and a per-chapter
 block with `title`, `kind` (`front` | `intro` | `chapter` | `conclusion` |
@@ -119,20 +122,30 @@ flags chapters against those budgets.
 `references/brief-schema.md`. Pre-fill everything inferable from the
 repository. Leave the rest as explicit empty fields.
 
-**6. Copy templates (do not overwrite if they already exist):**
+**6. Copy templates (do not overwrite if they already exist).** Take the
+integrity declaration matching `lang` — `.fr.md` or `.en.md`:
 
-- `$ROOT/assets/markdown/00-page-de-garde.md` → `reports_docs/00-page-de-garde.md`
-- `$ROOT/assets/markdown/00b-declaration-integrite.md` → `reports_docs/00b-declaration-integrite.md`
+- `$CRROOT/assets/markdown/00-page-de-garde.md` → `reports_docs/00-page-de-garde.md`
+- `$CRROOT/assets/markdown/00b-declaration-integrite.<lang>.md` → `reports_docs/00b-declaration-integrite.md`
+- `$CRROOT/assets/markdown/sources-README.md` → `reports_docs/sources/README.md`
 
-Append `$ROOT/assets/gitignore.fragment` to the project's `.gitignore` if those
+Create `reports_docs/sources/` even though it starts empty. It is where the
+student drops the documents that close the gaps the repository cannot fill, and
+an existing folder gets used where an instruction to create one gets forgotten.
+
+Append `$CRROOT/assets/gitignore.fragment` to the project's `.gitignore` if those
 lines are not already present.
 
 After copying, stamp the generated markdown so later drafts will not clobber it:
 
 ```bash
-python3 "$ROOT/scripts/cli.py" guard --stamp reports_docs/00-page-de-garde.md
-python3 "$ROOT/scripts/cli.py" guard --stamp reports_docs/00b-declaration-integrite.md
+python3 "$CR" guard --stamp reports_docs/00-page-de-garde.md
+python3 "$CR" guard --stamp reports_docs/00b-declaration-integrite.md
 ```
+
+The cover page is `\input{titlepage}` — a stub. All cover text comes from the
+`report.yaml` fields, and its labels are rendered in `lang`, so there is nothing
+language-specific to edit by hand.
 
 **7. Report to the user.** Give:
 
@@ -148,5 +161,26 @@ python3 "$ROOT/scripts/cli.py" guard --stamp reports_docs/00b-declaration-integr
 
 Do not create any chapter files. `/report:init` only sets up.
 
-Finish by telling the user to fill `BRIEF.md` (and `period_start` / `period_end`
-in `report.yaml`), then run `/report:draft`.
+## The pipeline this starts
+
+Say plainly where this is going, so the user knows what to expect:
+
+```
+/report:init  →  fill BRIEF.md  →  /report:draft  →  read the markdown
+                       ↑                                    │
+                       │        drop documents in           │ confirm
+                       └──────  reports_docs/sources/  ←─────┤
+                                                            ↓
+                                        /report:review  →  /report:build
+                                                            ↓
+                                                   build/overleaf.zip
+                                                            ↓
+                                              upload to Overleaf → PDF
+```
+
+**No PDF is produced locally.** The plugin stops at LaTeX; Overleaf compiles.
+Do not offer to install a TeX distribution.
+
+Finish by telling the user to fill `BRIEF.md` (and `period_start` /
+`period_end` in `report.yaml`), drop any supporting documents into
+`reports_docs/sources/`, then run `/report:draft`.

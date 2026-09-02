@@ -3,7 +3,9 @@
 type: pfa                                  # pfe | pfa | stage-initiation |
                                            # stage-technicien | module | memoire
 skeleton: 04-pfa-annual-project
-lang: fr                                   # fr | en
+lang: fr                                   # fr | en — surface strings only:
+                                           # headings, LaTeX chrome, CLI output.
+                                           # Never changes the skeleton or the checks.
 pages_total: 35
 words_per_page: 350
 biblio_position: before_annexes            # before_annexes | after_annexes

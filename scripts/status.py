@@ -11,6 +11,8 @@ from gen_figures import is_placeholder  # noqa: E402
 from placeholders import scan_tree  # noqa: E402
 from report_config import load_report_config  # noqa: E402
 from review import run as review_run  # noqa: E402
+from i18n import is_empty_value, strings  # noqa: E402
+from sources import brief_gaps, collect, sources_dir  # noqa: E402
 
 
 def brief_completeness(root: Path) -> tuple:
@@ -26,7 +28,7 @@ def brief_completeness(root: Path) -> tuple:
         total += 1
         _, _, rest = line.partition(":")
         value = rest.strip()
-        if value and value not in ("À compléter", "TBD", "...", "—", "-"):
+        if value and not is_empty_value(value):
             filled += 1
     pct = round(100 * filled / total) if total else 0
     return filled, total, pct
@@ -47,9 +49,9 @@ def figure_counts(root: Path, build_dir: Path) -> dict:
             provided += 1
     return {
         "declared": len(figs),
-        "fourni": provided,
+        "provided": provided,
         "placeholder": placeholder,
-        "manquant": missing,
+        "missing": missing,
     }
 
 
@@ -63,11 +65,18 @@ def status_text(root: Path, build_dir: Path = None) -> str:
     cites = sum(1 for p in scan_tree(root) if p.kind == "CITE")
     blocking = len(result["issues"])
 
+    S = strings(cfg.lang)
+    label_w = max(len(S("status.type")), len(S("status.brief")),
+                  len(S("status.blocking")), len(S("status.figures")),
+                  len(S("status.citations"))) + 3
     lines = [
-        f"Type            {cfg.type.upper()} — {cfg.skeleton} ({cfg.lang})",
-        f"Brief           {filled}/{total} champs renseignés ({pct} %)",
+        f"{S('status.type'):<{label_w}}{cfg.type.upper()} — "
+        f"{cfg.skeleton} ({cfg.lang})",
+        f"{S('status.brief'):<{label_w}}"
+        + S("status.brief_fields", filled=filled, total=total, pct=pct),
         "",
-        f"{'Chapitre':<34} {'Pages':>6}  {'Cible':>9}  État",
+        f"{S('status.col_chapter'):<34} {S('status.col_pages'):>6}  "
+        f"{S('status.col_target'):>9}  {S('status.col_state')}",
     ]
     for name, pg in result["pages"].items():
         spec = cfg.spec_for(name)
@@ -76,44 +85,58 @@ def status_text(root: Path, build_dir: Path = None) -> str:
         else:
             cible = "—"
         if pg == 0:
-            etat = "non rédigé"
+            etat = S("state.unwritten")
         elif spec.pages and pg > spec.pages[1] * 1.15:
-            etat = "dépassement"
+            etat = S("state.over")
         elif spec.pages and pg < spec.pages[0] * 0.5:
-            etat = "incomplet"
+            etat = S("state.incomplete")
         else:
-            etat = "ok"
+            etat = S("state.ok")
         lines.append(f"{name:<34} {pg:>6}  {cible:>9}  {etat}")
 
     body = result.get("pages_body", 0)
     lines += [
         "",
-        f"{'Total corps':<34} {body:>6}  {str(cfg.pages_total):>9}",
+        f"{S('status.total_body'):<34} {body:>6}  {str(cfg.pages_total):>9}",
         "",
-        f"Placeholders bloquants   {blocking}",
-        f"Figures                  {figs['declared']} déclarées, "
-        f"{figs['fourni']} fournies, "
-        f"{figs['placeholder'] + figs['manquant']} à produire",
-        f"Citations à sourcer      {cites}",
+        f"{S('status.blocking'):<{label_w}}{blocking}",
+        f"{S('status.figures'):<{label_w}}"
+        + S("status.figures_value", declared=figs["declared"],
+            provided=figs["provided"],
+            todo=figs["placeholder"] + figs["missing"]),
+        f"{S('status.citations'):<{label_w}}{cites}",
     ]
 
-    next_action = _next_action(result, filled, total, figs)
-    lines += ["", f"Prochaine action : {next_action}"]
+    gaps = brief_gaps(root)
+    gap_count = sum(len(v) for v in gaps.values())
+    inv = collect(root, extract=False)
+    lines += [
+        S("gaps.count", n=gap_count),
+        S("src.readable", n=len(inv.readable))
+        + (f"  ({sources_dir(root)})" if inv.exists else ""),
+    ]
+
+    next_action = _next_action(result, filled, total, figs, S,
+                               gap_count, sources_dir(root))
+    lines += ["", f"{S('status.next')} : {next_action}"]
     return "\n".join(lines) + "\n"
 
 
-def _next_action(result, filled, total, figs) -> str:
+def _next_action(result, filled, total, figs, S,
+                 gap_count=0, sdir="") -> str:
     if total and filled / total < 0.4:
-        return "compléter BRIEF.md avant de rédiger davantage"
+        return S("next.fill_brief")
+    if gap_count:
+        return S("next.add_sources", dir=sdir)
     pages = result.get("pages") or {}
     empty = [n for n, p in pages.items() if p == 0]
     if empty:
-        return f"rédiger {empty[0]} (/report:draft --chapter …)"
+        return S("next.write", name=empty[0])
     if result["issues"]:
-        return "corriger les problèmes bloquants (/report:review)"
-    if figs["placeholder"] + figs["manquant"]:
-        return "remplacer les figures grises (voir build/figures/MANIFEST.md)"
-    return "relancer /report:review puis /report:build"
+        return S("next.fix_blocking")
+    if figs["placeholder"] + figs["missing"]:
+        return S("next.replace_figures")
+    return S("next.review_then_build")
 
 
 def main() -> int:

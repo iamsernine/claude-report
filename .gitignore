@@ -25,3 +25,7 @@ Thumbs.db
 
 # Drafts kept out of version control
 drafts/
+
+# Python
+__pycache__/
+*.pyc

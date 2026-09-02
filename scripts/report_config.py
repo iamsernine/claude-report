@@ -22,21 +22,39 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+import sys
+sys.path.insert(0, str(Path(__file__).parent))
+from i18n import normalise as normalise_lang, vocabulary  # noqa: E402
+
 RESEARCH_SKELETONS = frozenset({
     "02-pfe-research-ml",
     "03-pfe-data-cloud-deployment",
 })
 
-# Filename hints used when yaml has no `kind`
+# One skeleton set for every language. Structure follows the experience
+# type and the deliverable; `lang` only selects surface strings.
+VALID_SKELETONS = (
+    "00-stage-initiation",
+    "01-pfe-software-engineering",
+    "02-pfe-research-ml",
+    "03-pfe-data-cloud-deployment",
+    "04-pfa-annual-project",
+    "05-module-project",
+    "07-stage-technicien",
+)
+
+# Retired: "06-capstone-en" was a second structure for English reports.
+# It is now 01-pfe-software-engineering rendered with lang: en.
+LEGACY_SKELETONS = {"06-capstone-en": "01-pfe-software-engineering"}
+
+# Filename hints used when yaml has no `kind`.
+# Sourced from the shared vocabulary so a chapter called `01-remerciements`
+# and one called `01-acknowledgements` are classified identically.
 _KIND_HINTS = (
-    ("front", ("page-de-garde", "dedicace", "remerciement", "resume",
-               "abstract", "acronyme", "declaration", "integrite",
-               "sommaire")),
-    ("intro", ("introduction-generale", "introduction_generale",
-               "introduction-generale")),
-    ("conclusion", ("conclusion-generale", "conclusion_generale",
-                    "conclusion-generale")),
-    ("annex", ("annexe", "annexes", "appendix", "appendices")),
+    ("front", tuple(vocabulary("front"))),
+    ("annex", tuple(vocabulary("annex"))),
+    ("intro", tuple(vocabulary("intro"))),
+    ("conclusion", tuple(vocabulary("conclusion"))),
 )
 
 VALID_TYPES = (
@@ -288,7 +306,11 @@ def _assign(cfg: ReportConfig, key: str, value) -> None:
         except (TypeError, ValueError):
             return
     if attr == "type" and value not in VALID_TYPES:
-        pass
+        return
+    if attr == "lang":
+        value = normalise_lang(value)
+    if attr == "skeleton":
+        value = LEGACY_SKELETONS.get(str(value), value)
     if attr == "biblio_position" and value not in (
             "before_annexes", "after_annexes"):
         value = "before_annexes"

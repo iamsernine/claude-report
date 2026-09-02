@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
-"""Convert the markdown tree into a compilable LaTeX report.
+"""Convert the markdown tree into an Overleaf-ready LaTeX bundle.
 
-    python3 scripts/build.py reports_docs build [--allow-todo] [--no-compile]
+    python3 scripts/build.py reports_docs build [--allow-todo] [--compile]
 
-Produces build/main.tex, build/figures/, build/references.bib and, if pdflatex is
-available, build/main.pdf. The .tex is generated output — never hand-edit it.
+Produces build/main.tex, build/figures/, build/references.bib, build/titlepage.tex
+and build/overleaf.zip. **No PDF is produced locally by default** — the bundle is
+meant to be uploaded to Overleaf, which owns compilation.
+
+`--compile` is an opt-in escape hatch for anyone who happens to have a local TeX
+installation; nothing in the workflow depends on it.
+
+The .tex is generated output — never hand-edit it. Fix the markdown and rebuild.
 """
 from __future__ import annotations
 
@@ -13,14 +19,16 @@ import re
 import shutil
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 sys.path.insert(0, str(Path(__file__).parent))
 from gen_figures import generate as generate_figures  # noqa: E402
-from paths import assets_dir  # noqa: E402
+from paths import assets_dir, is_report_content  # noqa: E402
 from placeholders import scan_text, scan_tree  # noqa: E402
 from report_config import ChapterSpec, ReportConfig, load_report_config  # noqa: E402
+from i18n import strings  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 ASSETS = HERE.parent / "assets" / "latex"
@@ -36,8 +44,9 @@ LST_LANG = {
 
 BIB_KEY_RE = re.compile(r"@\w+\s*\{\s*([^,\s}]+)")
 
+# Kept for reference; the authoritative filter is paths.is_report_content.
 SKIP_NAMES = {
-    "BRIEF.md", "report.yaml", "figures", "cover.yaml",
+    "BRIEF.md", "report.yaml", "figures", "cover.yaml", "sources",
 }
 
 
@@ -46,8 +55,10 @@ SKIP_NAMES = {
 # --------------------------------------------------------------------------
 
 def expand(text: str, allow_todo: bool, cites: list,
-           source: str = "", kinds: Optional[dict] = None) -> str:
+           source: str = "", kinds: Optional[dict] = None,
+           S=None) -> str:
     kinds = kinds if kinds is not None else {}
+    S = S or strings()
 
     def repl(m):
         raw = m.group(0)
@@ -71,9 +82,10 @@ def expand(text: str, allow_todo: bool, cites: list,
                 f"\\caption{{{tex_escape(p.caption)}}}\n"
                 f"\\label{{tab:{p.slug}}}\n"
                 "\\begin{tabular}{ll}\n\\hline\n"
-                "Colonne A & Colonne B \\\\\n\\hline\n"
-                r"\multicolumn{2}{l}{\textcolor{red}{\textit{"
-                r"Tableau non renseigné — à remplacer.}}} \\"
+                f"{tex_escape(S('tex.table_col_a'))} & "
+                f"{tex_escape(S('tex.table_col_b'))} \\\\\n\\hline\n"
+                "\\multicolumn{2}{l}{\\textcolor{red}{\\textit{"
+                f"{tex_escape(S('tex.table_empty'))}}}}} \\\\"
                 "\n\\hline\n\\end{tabular}\n\\end{table}\n")
 
         if p.kind == "CODE":
@@ -82,13 +94,14 @@ def expand(text: str, allow_todo: bool, cites: list,
             return (
                 f"\n\\begin{{lstlisting}}[{lang_opt}"
                 f"caption={{{tex_escape(p.caption)}}},label={{lst:{p.slug}}}]\n"
-                "% CODE NON RENSEIGNÉ — coller le fragment ici\n"
+                f"% {S('tex.code_empty')}\n"
                 "\\end{lstlisting}\n")
 
         if p.kind == "EQ":
             return (f"\n\\begin{{equation}}\n\\label{{eq:{p.slug}}}\n"
                     f"% {tex_escape(p.caption)}\n"
-                    r"\text{\textcolor{red}{équation non renseignée}}"
+                    "\\text{\\textcolor{red}{"
+                    f"{tex_escape(S('tex.eq_empty'))}}}"
                     "\n\\end{equation}\n")
 
         if p.kind == "REF":
@@ -133,8 +146,9 @@ def existing_bib_keys(text: str) -> set:
     return set(BIB_KEY_RE.findall(text or ""))
 
 
-def merge_bib(path: Path, cites: List[Tuple[str, str, str]]) -> int:
+def merge_bib(path: Path, cites: List[Tuple[str, str, str]], S=None) -> int:
     """Append stubs for new keys only. Returns number of stubs added."""
+    S = S or strings()
     existing = path.read_text(encoding="utf-8") if path.is_file() else ""
     keys = existing_bib_keys(existing)
     if keys <= {"placeholder"}:
@@ -148,14 +162,15 @@ def merge_bib(path: Path, cites: List[Tuple[str, str, str]]) -> int:
         chunks.append(
             f"@misc{{{key},\n"
             f"  title = {{{bib_escape(desc)}}},\n"
-            f"  note = {{À SOURCER — cité dans {bib_escape(where)}}},\n"
+            f"  note = {{{bib_escape(S('bib.to_source', where=where))}}},\n"
             f"  year = {{2026}}\n}}"
         )
         keys.add(key)
         added += 1
     if not chunks:
         path.write_text(
-            "@misc{placeholder, title={Aucune référence}, year={2026}}\n",
+            f"@misc{{placeholder, title={{{bib_escape(S('bib.none'))}}}, "
+            "year={2026}}\n",
             encoding="utf-8")
         return 0
     path.write_text("\n\n".join(chunks).strip() + "\n", encoding="utf-8")
@@ -169,8 +184,9 @@ def merge_bib(path: Path, cites: List[Tuple[str, str, str]]) -> int:
 _PANDOC_WARNED = False
 
 
-def md_to_tex(md: str) -> str:
+def md_to_tex(md: str, S=None) -> str:
     global _PANDOC_WARNED
+    S = S or strings()
     if shutil.which("pandoc"):
         proc = subprocess.run(
             ["pandoc", "-f", "markdown+raw_tex", "-t", "latex",
@@ -181,9 +197,7 @@ def md_to_tex(md: str) -> str:
         print(f"  pandoc failed, using fallback: {proc.stderr.strip()[:120]}",
               file=sys.stderr)
     elif not _PANDOC_WARNED:
-        print("AVERTISSEMENT: pandoc introuvable — conversion minimale "
-              "(titres seulement). Installez pandoc pour un PDF correct "
-              "(listes, tableaux, citations).", file=sys.stderr)
+        print(S("build.no_pandoc"), file=sys.stderr)
         _PANDOC_WARNED = True
     return _fallback(md)
 
@@ -218,7 +232,7 @@ def strip_matching_h1(text: str, title: str) -> str:
 
 def iter_items(root: Path):
     for item in sorted(root.iterdir()):
-        if item.name in SKIP_NAMES or item.name.endswith(".generated"):
+        if not is_report_content(item, root):
             continue
         if item.is_file() and item.suffix == ".md":
             yield item
@@ -246,26 +260,30 @@ def chapter_heading(spec: ChapterSpec) -> str:
 
 
 def convert_item(item: Path, spec: ChapterSpec, root: Path,
-                 allow_todo: bool, cites: list, kinds: dict) -> str:
+                 allow_todo: bool, cites: list, kinds: dict, S=None) -> str:
+    S = S or strings()
     parts = [chapter_heading(spec)] if spec.kind != "front" else []
     mds = [item] if item.is_file() else sorted(
-        p for p in item.rglob("*.md") if not p.name.endswith(".generated"))
+        p for p in item.rglob("*.md") if is_report_content(p, root))
     title = spec.display_title()
     for i, md in enumerate(mds):
         text = md.read_text(encoding="utf-8")
         if spec.kind != "front" and i == 0:
             text = strip_matching_h1(text, title)
         rel = str(md.relative_to(root))
-        parts.append(md_to_tex(expand(text, allow_todo, cites, rel, kinds)))
+        parts.append(md_to_tex(
+            expand(text, allow_todo, cites, rel, kinds, S), S))
     return "\n".join(parts)
 
 
-def cover_macros(cfg: ReportConfig) -> str:
+def cover_macros(cfg: ReportConfig, S=None) -> str:
+    S = S or strings(cfg.lang)
+
     def cmd(name: str, value: Optional[str]) -> str:
-        body = tex_escape(value) if value else r"À compléter"
+        body = tex_escape(value) if value else tex_escape(S("cover.to_complete"))
         return f"\\providecommand{{\\{name}}}{{{body}}}\n"
 
-    return (
+    values = (
         cmd("reporttitle", cfg.title)
         + cmd("reportauthor", cfg.author)
         + cmd("reportinstitution", cfg.institution)
@@ -274,33 +292,69 @@ def cover_macros(cfg: ReportConfig) -> str:
         + cmd("reportsupervisor", cfg.supervisor)
         + cmd("reporttype", cfg.type.upper() if cfg.type else None)
     )
+    # Cover labels follow the report language, so the same titlepage.tex
+    # renders correctly in every locale.
+    labels = "".join(
+        f"\\providecommand{{\\{macro}}}{{{tex_escape(S(key))}}}\n"
+        for macro, key in (
+            ("coverreportof", "cover.report_of"),
+            ("coveracademicyear", "cover.academic_year"),
+            ("coverpreparedby", "cover.prepared_by"),
+            ("coversupervisedby", "cover.supervised_by"),
+            ("coverinstitutionlogo", "cover.institution_logo"),
+            ("coverhostlogo", "cover.host_logo"),
+        )
+    )
+    return values + labels
+
+
+def language_package(lang: str) -> str:
+    """The babel line for this locale. One mechanism, no per-language branch
+    anywhere else in the build."""
+    return "\\usepackage[%s]{babel}" % strings(lang)("babel")
 
 
 # --------------------------------------------------------------------------
 
+def make_zip(out: Path) -> Path:
+    """Bundle everything Overleaf needs into one uploadable archive."""
+    archive = out / "overleaf.zip"
+    if archive.exists():
+        archive.unlink()
+    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zf:
+        for path in sorted(out.rglob("*")):
+            if not path.is_file() or path == archive:
+                continue
+            # build artefacts from an opt-in local compile do not belong in it
+            if path.suffix in {".aux", ".bbl", ".blg", ".log", ".out",
+                               ".toc", ".lof", ".lot", ".synctex.gz", ".pdf"}:
+                continue
+            zf.write(path, path.relative_to(out))
+    return archive
+
+
 def build(source: Path, out: Path, allow_todo: bool = False,
-          no_compile: bool = False) -> int:
+          no_compile: bool = True, compile_pdf: bool = False) -> int:
     root, out = Path(source), Path(out)
     if not root.is_dir():
-        print(f"error: {root} introuvable", file=sys.stderr)
+        print(strings()("build.not_found", path=root), file=sys.stderr)
         return 1
 
     cfg = load_report_config(root)
+    S = strings(cfg.lang)
     blocking = [p for p in scan_tree(root) if p.blocking]
     if blocking and not allow_todo:
-        print(f"BLOQUÉ — {len(blocking)} placeholder(s) METRIC/TODO "
-              f"non résolu(s) :\n")
+        print(S("build.blocked", n=len(blocking)) + "\n")
         for p in blocking[:15]:
             print(f"  {p.file}:{p.line}  [[{p.kind}]] {p.caption}")
         if len(blocking) > 15:
-            print(f"  … et {len(blocking) - 15} de plus")
-        print("\nRenseignez-les, ou relancez avec --allow-todo "
-              "pour un PDF de brouillon.")
+            print(S("build.and_more", n=len(blocking) - 15))
+        print("\n" + S("build.blocked_hint"))
         return 1
 
     out.mkdir(parents=True, exist_ok=True)
     (out / "figures").mkdir(exist_ok=True)
-    generate_figures(root, out / "figures")
+    generate_figures(root, out / "figures", cfg.lang)
 
     titlepage_src = ASSETS / "titlepage.tex"
     if not titlepage_src.is_file():
@@ -321,18 +375,21 @@ def build(source: Path, out: Path, allow_todo: bool = False,
         blocks = []
         for item, spec in grouped.get(kind, []):
             blocks.append(convert_item(
-                item, spec, root, allow_todo, cites, kinds))
+                item, spec, root, allow_todo, cites, kinds, S))
         return blocks
 
     preamble_path = ASSETS / "preamble.tex"
     preamble = preamble_path.read_text(encoding="utf-8")
+    if "%%LANG%%" in preamble:
+        preamble = preamble.replace("%%LANG%%", language_package(cfg.lang))
     draft = ("\\IfFileExists{draftwatermark.sty}{\\usepackage{draftwatermark}"
-             "\\SetWatermarkText{BROUILLON}\\SetWatermarkScale{0.7}}{}\n"
+             f"\\SetWatermarkText{{{tex_escape(S('tex.watermark'))}}}"
+             "\\SetWatermarkScale{0.7}}{}\n"
              if allow_todo else "")
 
     biblio = "\n\\printbibliography\n"
     body = (
-        preamble.replace("%%DRAFT%%", draft + cover_macros(cfg))
+        preamble.replace("%%DRAFT%%", draft + cover_macros(cfg, S))
         + "\n\\begin{document}\n"
         + "\\pagenumbering{roman}\n"
         + "\n".join(emit("front"))
@@ -351,28 +408,32 @@ def build(source: Path, out: Path, allow_todo: bool = False,
 
     (out / "main.tex").write_text(body, encoding="utf-8")
 
-    added = merge_bib(out / "references.bib", cites)
+    added = merge_bib(out / "references.bib", cites, S)
     if cites:
-        lines = ["# Citations à sourcer", ""]
-        lines += [f"- `{k}` — {d}  \n  *(cité dans {w})*"
+        lines = [S("build.citations_title"), ""]
+        lines += [f"- `{k}` — {d}  \n  *({S('build.cited_in')} {w})*"
                   for k, d, w in cites]
         (out / "citations-needed.md").write_text(
             "\n".join(lines) + "\n", encoding="utf-8")
 
-    print(f"\nécrit : {out / 'main.tex'}")
-    print(f"citations à sourcer : {len(cites)} "
-          f"({added} nouvelle(s) entrée(s) bib)")
+    archive = make_zip(out)
 
-    if no_compile:
+    print("\n" + S("build.written", path=out / "main.tex"))
+    print(S("build.bundle", path=out))
+    print(S("build.zip", path=archive))
+    print(S("build.citations", n=len(cites), added=added))
+    print("\n" + S("build.overleaf"))
+
+    if not compile_pdf:
+        print(S("build.no_local_pdf"))
         return 0
     if not shutil.which("pdflatex"):
-        print("pdflatex introuvable — compilez main.tex dans Overleaf.")
+        print(S("build.no_pdflatex"))
         return 0
 
     bibtool = "biber" if shutil.which("biber") else None
     if bibtool is None:
-        print("biber introuvable — bibliographie non résolue en local "
-              "(Overleaf la résoudra automatiquement).")
+        print(S("build.no_biber"))
     for i in range(3):
         subprocess.run(["pdflatex", "-interaction=nonstopmode", "main.tex"],
                        cwd=out, capture_output=True, text=True)
@@ -381,12 +442,12 @@ def build(source: Path, out: Path, allow_todo: bool = False,
                            capture_output=True, text=True)
     pdf = out / "main.pdf"
     if pdf.exists():
-        print(f"PDF : {pdf}")
+        print(S("build.pdf", path=pdf))
     else:
         log = out / "main.log"
         errs = [l for l in log.read_text(errors="ignore").splitlines()
                 if l.startswith("!")][:5] if log.exists() else []
-        print("compilation échouée :")
+        print(S("build.compile_failed"))
         for e in errs:
             print(f"  {e}")
     return 0
@@ -397,10 +458,14 @@ def main() -> int:
     ap.add_argument("source", nargs="?", default="reports_docs")
     ap.add_argument("out", nargs="?", default="build")
     ap.add_argument("--allow-todo", action="store_true")
-    ap.add_argument("--no-compile", action="store_true")
+    ap.add_argument("--compile", dest="compile_pdf", action="store_true",
+                    help="opt in to a local pdflatex run (not needed for "
+                         "Overleaf)")
+    ap.add_argument("--no-compile", action="store_true",
+                    help="accepted for compatibility; this is the default")
     args = ap.parse_args()
     return build(Path(args.source), Path(args.out),
-                 allow_todo=args.allow_todo, no_compile=args.no_compile)
+                 allow_todo=args.allow_todo, compile_pdf=args.compile_pdf)
 
 
 if __name__ == "__main__":
